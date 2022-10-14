@@ -21,7 +21,7 @@ If you find our work useful for your research, please consider citing the paper:
   title   =   {MotionBERT: Unified Pretraining for Human Motion Analysis}, 
   author  =   {Zhu, Wentao and Ma, Xiaoxuan and Liu, Zhaoyang and Liu, Libin and Wu, Wayne and Wang, Yizhou},
   year    =   {2022},
-  journal =   {Technical Report},
+  journal={arXiv preprint arXiv:2210.06551},
 }
 ```
 
