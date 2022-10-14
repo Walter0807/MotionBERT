@@ -1,6 +1,6 @@
 # MotionBERT: Unified Pretraining for Human Motion Analysis
 
-### [Project Page](https://motionbert.github.io/) | [Paper]()
+### [Project Page](https://motionbert.github.io/) | [Paper](https://arxiv.org/pdf/2210.06551.pdf)
 
 This is the official PyTorch implementation of the paper "MotionBERT: Unified Pretraining for Human Motion Analysis".
 
