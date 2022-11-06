@@ -1,0 +1,46 @@
+# General  
+finetune: True
+partial_train: null
+train_pw3d: True
+
+# Traning 
+epochs: 60
+checkpoint_frequency: 20
+batch_size: 64
+batch_size_img: 512
+dropout: 0.0
+lr_backbone: 0.0001
+lr_head: 0.001
+weight_decay: 0.01
+lr_decay: 0.98
+
+# Model
+maxlen: 243
+dim_feat: 256
+mlp_ratio: 4
+depth: 5
+dim_rep: 512
+num_heads: 8
+att_fuse: True
+hidden_dim: 2048
+
+# Data
+data_root: data/mesh
+dt_file_h36m: mesh_det_h36m.pkl
+dt_file_coco: mesh_det_coco.pkl
+dt_file_pw3d: mesh_det_pw3d.pkl
+clip_len: 81
+data_stride: 27
+sample_stride: 1
+num_joints: 17
+
+# Loss
+loss_3d: 0.01
+loss_pose: 1000
+loss_shape: 1
+loss_type: 'L1'
+
+# Augmentation
+flip: True
+scale_range_train: [1, 4]
+scale_range_test: [2, 2]
