@@ -48,13 +48,14 @@ class ActionHeadEmbed(nn.Module):
         return feat
 
 class ActionNet(nn.Module):
-    def __init__(self, backbone, dim_rep=512, num_classes=60, dropout_ratio=0., version='class', hidden_dim=2048):
+    def __init__(self, backbone, dim_rep=512, num_classes=60, dropout_ratio=0., version='class', hidden_dim=2048, num_joints=17):
         super(ActionNet, self).__init__()
         self.backbone = backbone
+        self.feat_J = num_joints
         if version=='class':
-            self.head = ActionHeadClassification(dropout_ratio=dropout_ratio, dim_rep=dim_rep, num_classes=num_classes)
+            self.head = ActionHeadClassification(dropout_ratio=dropout_ratio, dim_rep=dim_rep, num_classes=num_classes, num_joints=num_joints)
         elif version=='embed':
-            self.head = ActionHeadEmbed(dropout_ratio=dropout_ratio, dim_rep=dim_rep, hidden_dim=hidden_dim)
+            self.head = ActionHeadEmbed(dropout_ratio=dropout_ratio, dim_rep=dim_rep, hidden_dim=hidden_dim, num_joints=num_joints)
         else:
             raise Exception('Version Error.')
         
@@ -65,6 +66,6 @@ class ActionNet(nn.Module):
         N, M, T, J, C = x.shape
         x = x.reshape(N*M, T, J, C)        
         feat = self.backbone.get_representation(x)
-        feat = feat.reshape([N, M, T, J, -1])      # (N, M, T, J, C)
+        feat = feat.reshape([N, M, T, self.feat_J, -1])      # (N, M, T, J, C)
         out = self.head(feat)
         return out

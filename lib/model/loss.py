@@ -115,6 +115,8 @@ def loss_limb_var(x):
     '''
         Input: (N, T, 17, 3)
     '''
+    if x.shape[1]<=1:
+        return torch.FloatTensor(1).fill_(0.)[0].to(x.device)
     limb_lens = get_limb_lens(x)
     limb_lens_var = torch.var(limb_lens, dim=1)
     limb_loss_var = torch.mean(limb_lens_var)
@@ -133,6 +135,8 @@ def loss_velocity(predicted, target):
     Mean per-joint velocity error (i.e. mean Euclidean distance of the 1st derivative)
     """
     assert predicted.shape == target.shape
+    if predicted.shape[1]<=1:
+        return torch.FloatTensor(1).fill_(0.)[0].to(predicted.device)
     velocity_predicted = predicted[:,1:] - predicted[:,:-1]
     velocity_target = target[:,1:] - target[:,:-1]
     return torch.mean(torch.norm(velocity_predicted - velocity_target, dim=-1))
@@ -185,12 +189,16 @@ def loss_angle(x, gt):
     limb_angles_gt = get_angles(gt)
     return nn.L1Loss()(limb_angles_x, limb_angles_gt)
 
-def loss_angle_velocity(predicted, target):
+def loss_angle_velocity(x, gt):
     """
     Mean per-angle velocity error (i.e. mean Euclidean distance of the 1st derivative)
     """
-    assert predicted.shape == target.shape
-    velocity_predicted = predicted[:,1:] - predicted[:,:-1]
-    velocity_target = target[:,1:] - target[:,:-1]
-    return nn.L1Loss()(velocity_predicted, velocity_target)
+    assert x.shape == gt.shape
+    if x.shape[1]<=1:
+        return torch.FloatTensor(1).fill_(0.)[0].to(x.device)
+    x_a = get_angles(x)
+    gt_a = get_angles(gt)
+    x_av = x_a[:,1:] - x_a[:,:-1]
+    gt_av = gt_a[:,1:] - gt_a[:,:-1]
+    return nn.L1Loss()(x_av, gt_av)
 

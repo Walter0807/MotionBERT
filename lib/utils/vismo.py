@@ -2,6 +2,7 @@ import numpy as np
 import os
 import cv2
 import math
+import copy
 import imageio
 import io
 from tqdm import tqdm
@@ -9,16 +10,28 @@ from PIL import Image
 from lib.utils.tools import ensure_dir
 import matplotlib
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 from lib.utils.utils_smpl import *
+import ipdb
 
-def render_and_save(motion, save_path, keep_imgs=False, fps=25, color="#F96706#FB8D43#FDB381"):
+def render_and_save(motion_input, save_path, keep_imgs=False, fps=25, color="#F96706#FB8D43#FDB381", with_conf=False, draw_face=False):
     ensure_dir(os.path.dirname(save_path))
+    motion = copy.deepcopy(motion_input)
     if motion.shape[-1]==2 or motion.shape[-1]==3:
         motion = np.transpose(motion, (1,2,0))   #(T,17,D) -> (17,D,T) 
-    if motion.shape[1]==2:
+    if motion.shape[1]==2 or with_conf:
         colors = hex2rgb(color)
-        motion_world = pixel2world_vis_motion(motion)
-        motion2video(motion_world, save_path=save_path, colors=colors, fps=fps)
+        if not with_conf:
+            J, D, T = motion.shape
+            motion_full = np.ones([J,3,T])
+            motion_full[:,:2,:] = motion
+        else:
+            motion_full = motion
+        motion_full[:,:2,:] = pixel2world_vis_motion(motion_full[:,:2,:])
+        motion2video(motion_full, save_path=save_path, colors=colors, fps=fps)
+    elif motion.shape[0]==6890:
+        # motion_world = pixel2world_vis_motion(motion, dim=3)
+        motion2video_mesh(motion, save_path=save_path, keep_imgs=keep_imgs, fps=fps, draw_face=draw_face)
     else:
         motion_world = pixel2world_vis_motion(motion, dim=3)
         motion2video_3d(motion_world, save_path=save_path, keep_imgs=keep_imgs, fps=fps)
@@ -51,12 +64,12 @@ def vis_data_batch(data_input, data_label, n_render=10, save_path='doodle/vis_tr
 
 def get_img_from_fig(fig, dpi=120):
     buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=dpi)
+    fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight", pad_inches=0)
     buf.seek(0)
     img_arr = np.frombuffer(buf.getvalue(), dtype=np.uint8)
     buf.close()
     img = cv2.imdecode(img_arr, 1)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGBA)
     return img
 
 def rgb2rgba(color):
@@ -154,7 +167,12 @@ def joints2image(joints_position, colors, transparency=False, H=1000, W=1000, nr
             radius = 2
         else:
             radius = joints_radius
+        if len(joints_position[i])==3:                 # If there is confidence, weigh by confidence
+            weight = joints_position[i][2]
+            if weight==0:
+                continue
         cv2.circle(canvas, (int(joints_position[i][0]),int(joints_position[i][1])), radius, colors_joints[i], thickness=-1)
+        
     stickwidth = 2
     for i in range(len(limbSeq)):
         limb = limbSeq[i]
@@ -163,6 +181,12 @@ def joints2image(joints_position, colors, transparency=False, H=1000, W=1000, nr
         point2_index = limb[1]
         point1 = joints_position[point1_index]
         point2 = joints_position[point2_index]
+        if len(point1)==3:                             # If there is confidence, weigh by confidence
+            limb_weight = min(point1[2], point2[2])
+            if limb_weight==0:
+                bb = bounding_box(canvas)
+                canvas_cropped = canvas[:,bb[2]:bb[3], :]
+                continue
         X = [point1[1], point2[1]]
         Y = [point1[0], point2[0]]
         mX = np.mean(X)
@@ -260,7 +284,6 @@ def motion2video_3d(motion, save_path, fps=25, keep_imgs = False):
     videowriter.close()
 
 def motion2video_mesh(motion, save_path, fps=25, keep_imgs = False, draw_face=True):
-#     motion: (K,D,T)
     videowriter = imageio.get_writer(save_path, fps=fps)
     vlen = motion.shape[-1]
     draw_skele = (motion.shape[0]==17)
@@ -269,22 +292,35 @@ def motion2video_mesh(motion, save_path, fps=25, keep_imgs = False, draw_face=Tr
     frames = []
     joint_pairs = [[0, 1], [1, 2], [2, 3], [0, 4], [4, 5], [5, 6], [0, 7], [7, 8], [8, 9], [8, 11], [8, 14], [9, 10], [11, 12], [12, 13], [14, 15], [15, 16]]
 
+    
     X, Y, Z = motion[:, 0], motion[:, 1], motion[:, 2]
     max_range = np.array([X.max()-X.min(), Y.max()-Y.min(), Z.max()-Z.min()]).max() / 2.0
     mid_x = (X.max()+X.min()) * 0.5
     mid_y = (Y.max()+Y.min()) * 0.5
     mid_z = (Z.max()+Z.min()) * 0.5
+    
     for f in tqdm(range(vlen)):
         j3d = motion[:,:,f]
-        fig = plt.figure(0, figsize=(10, 10))
-        ax = plt.axes(projection="3d")
+        plt.gca().set_axis_off()
+        plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
+        plt.gca().xaxis.set_major_locator(plt.NullLocator())
+        plt.gca().yaxis.set_major_locator(plt.NullLocator())
+        fig = plt.figure(0, figsize=(8, 8))
+        ax = plt.axes(projection="3d", proj_type = 'ortho')
         ax.set_xlim(mid_x - max_range, mid_x + max_range)
         ax.set_ylim(mid_y - max_range, mid_y + max_range)
         ax.set_zlim(mid_z - max_range, mid_z + max_range)
-        ax.view_init(elev=-90., azim=-90)
+        ax.view_init(elev=-90, azim=-90)
+        plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
+        plt.margins(0, 0, 0)
+        plt.gca().xaxis.set_major_locator(plt.NullLocator())
+        plt.gca().yaxis.set_major_locator(plt.NullLocator())
         plt.axis('off')
         plt.xticks([])
         plt.yticks([])
+        
+        # plt.savefig("filename.png", transparent=True, bbox_inches="tight", pad_inches=0)
+        
         if draw_skele:
             for i in range(len(joint_pairs)):
                 limb = joint_pairs[i]
@@ -294,7 +330,8 @@ def motion2video_mesh(motion, save_path, fps=25, keep_imgs = False, draw_face=Tr
             ax.plot_trisurf(j3d[:, 0], j3d[:, 1], triangles=smpl_faces, Z=j3d[:, 2], color=(166/255.0,188/255.0,218/255.0,0.9))
         else:
             ax.scatter(j3d[:, 0], j3d[:, 1], j3d[:, 2], s=3, c='w', edgecolors='grey')
-        frame_vis = get_img_from_fig(fig, dpi=400)
+        frame_vis = get_img_from_fig(fig, dpi=128)
+        plt.cla()
         videowriter.append_data(frame_vis)
     videowriter.close()
 

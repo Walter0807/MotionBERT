@@ -19,17 +19,12 @@ from torch.utils.data import DataLoader
 
 from lib.utils.tools import *
 from lib.utils.learning import *
-from lib.utils.learning import load_backbone
 from lib.utils.utils_data import flip_data
 from lib.data.dataset_motion_2d import PoseTrackDataset2D, InstaVDataset2D
 from lib.data.dataset_motion_3d import MotionDataset3D
 from lib.data.augmentation import Augmenter2D
 from lib.data.datareader_h36m import DataReaderH36M  
 from lib.model.loss import *
-
-random.seed(0)
-np.random.seed(0)
-torch.manual_seed(0)
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -39,8 +34,14 @@ def parse_args():
     parser.add_argument('-r', '--resume', default='', type=str, metavar='FILENAME', help='checkpoint to resume (file name)')
     parser.add_argument('-e', '--evaluate', default='', type=str, metavar='FILENAME', help='checkpoint to evaluate (file name)')
     parser.add_argument('-ms', '--selection', default='latest_epoch.bin', type=str, metavar='FILENAME', help='checkpoint to finetune (file name)')
+    parser.add_argument('-sd', '--seed', default=0, type=int, help='random seed')
     opts = parser.parse_args()
     return opts
+
+def set_random_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
 
 def save_checkpoint(chk_path, epoch, lr, optimizer, model_pos, min_loss):
     print('Saving checkpoint to', chk_path)
@@ -73,6 +74,8 @@ def evaluate(args, model_pos, test_loader, datareader):
                 predicted_3d_pos = model_pos(batch_input)
             if args.rootrel:
                 predicted_3d_pos[:,:,0,:] = 0     # [N,T,17,3]
+            else:
+                batch_gt[:,0,0,2] = 0
 
             if args.gt_2d:
                 predicted_3d_pos[...,:2] = batch_input[...,:2]
@@ -84,6 +87,7 @@ def evaluate(args, model_pos, test_loader, datareader):
     factors = np.array(datareader.dt_dataset['test']['2.5d_factor'])
     gts = np.array(datareader.dt_dataset['test']['joints_2.5d_image'])
     sources = np.array(datareader.dt_dataset['test']['source'])
+
     num_test_frames = len(actions)
     frames = np.array(range(num_test_frames))
     action_clips = actions[split_id_test]
@@ -162,6 +166,8 @@ def train_epoch(args, model_pos, train_loader, losses, optimizer, has_3d, has_gt
                 conf = copy.deepcopy(batch_input[:,:,:,2:])    # For 2D data, weight/confidence is at the last channel
             if args.rootrel:
                 batch_gt = batch_gt - batch_gt[:,:,0:1,:]
+            else:
+                batch_gt[:,:,:,2] = batch_gt[:,:,:,2] - batch_gt[:,0:1,0:1,2] # Place the depth of first frame root to 0.
             if args.mask or args.noise:
                 batch_input = args.aug.augment2D(batch_input, noise=(args.noise and has_gt), mask=args.mask)
         # Predict 3D poses
@@ -232,7 +238,6 @@ def train_with_config(args, opts):
     test_dataset = MotionDataset3D(args, args.subset_list, 'test')
     train_loader_3d = DataLoader(train_dataset, **trainloader_params)
     test_loader = DataLoader(test_dataset, **testloader_params)
-    real_loader = DataLoader(train_dataset, **trainloader_params)
     
     if args.train_2d:
         posetrack = PoseTrackDataset2D()
@@ -373,5 +378,6 @@ def train_with_config(args, opts):
 
 if __name__ == "__main__":
     opts = parse_args()
+    set_random_seed(opts.seed)
     args = get_config(opts.config)
     train_with_config(args, opts)

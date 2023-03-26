@@ -61,7 +61,7 @@ class SMPL(_SMPL):
     def __init__(self, *args, **kwargs):
         super(SMPL, self).__init__(*args, **kwargs)
         joints = [JOINT_MAP[i] for i in JOINT_NAMES]
-        self.smpl_mean_params = osp.join(args[0], 'h36m_mean_smpl.npz')
+        self.smpl_mean_params = osp.join(args[0], 'smpl_mean_params.npz')
         J_regressor_extra = np.load(osp.join(args[0], 'J_regressor_extra.npy'))
         self.register_buffer('J_regressor_extra', torch.tensor(J_regressor_extra, dtype=torch.float32))
         J_regressor_h36m = np.load(osp.join(args[0], 'J_regressor_h36m_correct.npy'))

@@ -2,6 +2,7 @@ import torch
 import numpy as np
 from torch.nn import functional as F
 import copy
+# from lib.utils.rotation_conversions import axis_angle_to_matrix, matrix_to_rotation_6d
 
 
 def batch_rodrigues(axisang):
@@ -370,9 +371,26 @@ def compute_error(output, target):
         pred_j3ds = pred_j3ds - pred_j3ds[:, :1, :]
         target_j3ds = target_j3ds - target_j3ds[:, :1, :]
         mpjpes = torch.sqrt(((pred_j3ds - target_j3ds) ** 2).sum(dim=-1)).mean(dim=-1).cpu()
-
-
         return mpjpes.mean(), mpves.mean()
+    
+def compute_error_frames(output, target):
+    with torch.no_grad():
+        pred_verts = output[0]['verts'].reshape(-1, 6890, 3)
+        target_verts = target['verts'].reshape(-1, 6890, 3)
+
+        pred_j3ds = output[0]['kp_3d'].reshape(-1, 17, 3)
+        target_j3ds = target['kp_3d'].reshape(-1, 17, 3)
+
+        # mpve
+        pred_verts = pred_verts - pred_j3ds[:, :1, :]
+        target_verts = target_verts - target_j3ds[:, :1, :]
+        mpves = torch.sqrt(((pred_verts - target_verts) ** 2).sum(dim=-1)).mean(dim=-1).cpu()
+
+        # mpjpe
+        pred_j3ds = pred_j3ds - pred_j3ds[:, :1, :]
+        target_j3ds = target_j3ds - target_j3ds[:, :1, :]
+        mpjpes = torch.sqrt(((pred_j3ds - target_j3ds) ** 2).sum(dim=-1)).mean(dim=-1).cpu()
+        return mpjpes, mpves
 
 def evaluate_mesh(results):
     pred_verts = results['verts'].reshape(-1, 6890, 3)
@@ -470,14 +488,14 @@ def flip_thetas_batch(thetas):
 
     Parameters
     ----------
-    thetas : torch.tensor
+    thetas : numpy.array
         Joints in shape (N, F, num_thetas*3)
     theta_pairs : list
         List of theta pairs.
 
     Returns
     -------
-    torch.tensor
+    numpy.array
         Flipped thetas with shape (N, F, num_thetas*3)
 
     """
@@ -493,3 +511,11 @@ def flip_thetas_batch(thetas):
             thetas_flip[:, :, pair[1], :], thetas_flip[:, :, pair[0], :].clone()
 
     return thetas_flip.reshape(*thetas.shape[:2], -1)
+
+# def smpl_aa_to_ortho6d(smpl_aa):
+# #     [...,72] -> [...,144]
+#     rot_aa = smpl_aa.reshape([-1,24,3])
+#     rotmat = axis_angle_to_matrix(rot_aa)
+#     rot6d = matrix_to_rotation_6d(rotmat)
+#     rot6d = rot6d.reshape(-1,24*6)
+#     return rot6d

@@ -14,6 +14,7 @@ from lib.utils.utils_smpl import SMPL
 from torch.utils.data import Dataset, DataLoader
 from lib.data.datareader_h36m import DataReaderH36M  
 from lib.data.datareader_mesh import DataReaderMesh  
+from lib.data.dataset_action import random_move  
 
 class SMPLDataset(Dataset):
     def __init__(self, args, data_split, dataset): # data_split: train/test; dataset: h36m, coco, pw3d
@@ -58,26 +59,20 @@ class MotionSMPL(SMPLDataset):
     def __init__(self, args, data_split, dataset):
         super(MotionSMPL, self).__init__(args, data_split, dataset)
         self.flip = args.flip
-        if dataset=="h36m":
-            self.scale_range = None
-            self.flip = False
-        else:
-            self.scale_range = {'train': args.scale_range_train, 'test': args.scale_range_test}[self.data_split]
-        self.union_to_h36m = [39, 27, 26, 25, 28, 29, 30, 41, 37, 44, 43, 34, 35, 36, 33, 32, 31]
-
+        
     def __getitem__(self, index):
         'Generates one sample of data'
         # Select sample
-        motion_2d = self.motion_2d[index]                                            # motion_2d: (T,17,3)      
+        motion_2d = self.motion_2d[index]                                            # motion_2d: (T,17,3)     
+        motion_2d[:,:,2] = np.clip(motion_2d[:,:,2], 0, 1)
         motion_smpl_pose = self.motion_smpl_3d['pose'][index].reshape(-1, 24, 3)     # motion_smpl_3d: (T, 24, 3)    
         motion_smpl_shape = self.motion_smpl_3d['shape'][index]                      # motion_smpl_3d: (T,10)    
         
         if self.data_split=="train":
             if self.flip and random.random() > 0.5:                                  # Training augmentation - random flipping
                 motion_2d = flip_data(motion_2d)
-                motion_smpl_pose = flip_thetas(motion_smpl_pose)
-        if self.scale_range:
-            motion_2d = crop_scale(motion_2d, scale_range=self.scale_range)
+                motion_smpl_pose = flip_thetas(motion_smpl_pose)                
+
             
         motion_smpl_pose = torch.from_numpy(motion_smpl_pose).reshape(-1, 72).float()
         motion_smpl_shape = torch.from_numpy(motion_smpl_shape).reshape(-1, 10).float()

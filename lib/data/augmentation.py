@@ -5,7 +5,7 @@ import torch
 import copy
 import torch.nn as nn
 from lib.utils.tools import read_pkl
-from lib.utils.utils_data import flip_data
+from lib.utils.utils_data import flip_data, crop_scale_3d
     
 class Augmenter2D(object):
     """
@@ -22,8 +22,8 @@ class Augmenter2D(object):
     def dis2conf(self, dis, a, b, m, s):
         f = a/(dis+a)+b*dis
         shift = torch.randn(*dis.shape)*s + m
-        if torch.cuda.is_available():
-            shift = shift.cuda()
+        # if torch.cuda.is_available():
+        shift = shift.to(dis.device)
         return f + shift
     
     def add_noise(self, motion_2d):
@@ -44,14 +44,15 @@ class Augmenter2D(object):
         uniform_sample = (torch.rand((batch_size, self.num_Kframes, num_joints, 2))-0.5) * uniform_range
         noise_mean = 0
         delta_noise = torch.randn(num_frames, num_joints, 2) * self.noise_std + noise_mean
-        if torch.cuda.is_available():
-            mean = mean.cuda()
-            std = std.cuda()
-            weight = weight.cuda()
-            gaussian_sample = gaussian_sample.cuda()
-            uniform_sample = uniform_sample.cuda()
-            sel = sel.cuda()
-            delta_noise = delta_noise.cuda()
+        # if torch.cuda.is_available():
+        mean = mean.to(motion_2d.device)
+        std = std.to(motion_2d.device)
+        weight = weight.to(motion_2d.device)
+        gaussian_sample = gaussian_sample.to(motion_2d.device)
+        uniform_sample = uniform_sample.to(motion_2d.device)
+        sel = sel.to(motion_2d.device)
+        delta_noise = delta_noise.to(motion_2d.device)
+            
         delta = gaussian_sample*(sel<weight) + uniform_sample*(sel>=weight)
         delta_expand = torch.nn.functional.interpolate(delta.unsqueeze(1), [num_frames, num_joints, 2], mode='trilinear', align_corners=True)[:,0]
         delta_final = delta_expand + delta_noise      
@@ -85,8 +86,14 @@ class Augmenter3D(object):
     """
     def __init__(self, args):
         self.flip = args.flip
+        if hasattr(args, "scale_range_pretrain"):
+            self.scale_range_pretrain = args.scale_range_pretrain
+        else:
+            self.scale_range_pretrain = None
     
-    def augment3D(self, motion_3d, flip=True):
-        if flip and random.random()>0.5:                       
+    def augment3D(self, motion_3d):
+        if self.scale_range_pretrain:
+            motion_3d = crop_scale_3d(motion_3d, self.scale_range_pretrain)
+        if self.flip and random.random()>0.5:                       
             motion_3d = flip_data(motion_3d)
         return motion_3d

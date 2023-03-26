@@ -17,11 +17,18 @@ class DataReaderMesh(object):
         self.res = res
         
     def read_2d(self):
+        if self.res is not None:
+            res_w, res_h = self.res
+            offset = [1, res_h / res_w]
+        else:
+            res = np.array(self.dt_dataset['train']['img_hw'])[::self.sample_stride].astype(np.float32)
+            res_w, res_h = res.max(1)[:, None, None], res.max(1)[:, None, None]
+            offset = 1
         trainset = self.dt_dataset['train']['joint_2d'][::self.sample_stride, :, :2].astype(np.float32)  # [N, 17, 2]
         testset = self.dt_dataset['test']['joint_2d'][::self.sample_stride, :, :2].astype(np.float32)    # [N, 17, 2] 
-        res_w, res_h = self.res
-        trainset = trainset / res_w * 2 - [1, res_h / res_w]
-        testset = testset / res_w * 2 - [1, res_h / res_w]
+        # res_w, res_h = self.res
+        trainset = trainset / res_w * 2 - offset
+        testset = testset / res_w * 2 - offset
         if self.read_confidence:
             train_confidence = self.dt_dataset['train']['confidence'][::self.sample_stride].astype(np.float32)  
             test_confidence = self.dt_dataset['test']['confidence'][::self.sample_stride].astype(np.float32)  

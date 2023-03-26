@@ -16,10 +16,10 @@ python train_mesh.py \
 --config configs/mesh/MB_train_pw3d.yaml \
 --checkpoint checkpoint/mesh/MB_train_pw3d
 
-# without 3DPW
+# H36M
 python train_mesh.py \
---config configs/mesh/MB_train_nopw3d.yaml \
---checkpoint checkpoint/mesh/MB_train_nopw3d
+--config configs/mesh/MB_train_h36m.yaml \
+--checkpoint checkpoint/mesh/MB_train_h36m
 ```
 
 **Finetune from a pretrained model:**
@@ -31,11 +31,11 @@ python train_mesh.py \
 --pretrained checkpoint/pretrain/MB_release \
 --checkpoint checkpoint/mesh/FT_MB_release_MB_ft_pw3d
 
-# without 3DPW
+# H36M
 python train_mesh.py \
---config configs/mesh/MB_ft_nopw3d.yaml \
+--config configs/mesh/MB_ft_h36m.yaml \
 --pretrained checkpoint/pretrain/MB_release \
---checkpoint checkpoint/mesh/FT_MB_release_MB_ft_nopw3d
+--checkpoint checkpoint/mesh/FT_MB_release_MB_ft_h36m
 
 ```
 
@@ -47,10 +47,10 @@ python train_mesh.py \
 --config configs/mesh/MB_train_pw3d.yaml \
 --evaluate checkpoint/mesh/MB_train_pw3d/best_epoch.bin 
 
-# without 3DPW
+# H36M
 python train_mesh.py \
---config configs/mesh/MB_train_nopw3d.yaml \
---evaluate checkpoint/mesh/MB_train_nopw3d/best_epoch.bin 
+--config configs/mesh/MB_train_h36m.yaml \
+--evaluate checkpoint/mesh/MB_train_h36m/best_epoch.bin 
 ```
 
 

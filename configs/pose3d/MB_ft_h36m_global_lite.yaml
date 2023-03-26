@@ -1,11 +1,11 @@
 # General  
 train_2d: False
 no_eval: False
-finetune: False
+finetune: True
 partial_train: null
 
 # Traning 
-epochs: 120
+epochs: 60
 checkpoint_frequency: 30
 batch_size: 32 
 dropout: 0.0
@@ -15,8 +15,8 @@ lr_decay: 0.99
 
 # Model
 maxlen: 243
-dim_feat: 512
-mlp_ratio: 2
+dim_feat: 256
+mlp_ratio: 4
 depth: 5
 dim_rep: 512
 num_heads: 8
@@ -28,7 +28,7 @@ subset_list: [H36M-SH]
 dt_file: h36m_sh_conf_cam_source_final.pkl
 clip_len: 243
 data_stride: 81
-rootrel: True
+rootrel: False
 sample_stride: 1
 num_joints: 17
 no_conf: False
@@ -48,4 +48,3 @@ flip: True
 mask_ratio: 0.
 mask_T_ratio: 0.
 noise: False
-

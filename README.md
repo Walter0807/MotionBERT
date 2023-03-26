@@ -1,10 +1,10 @@
-# MotionBERT: Unified Pretraining for Human Motion Analysis
+# MotionBERT
+
+[![arXiv](https://img.shields.io/badge/arXiv-2210.06551-b31b1b.svg)](https://arxiv.org/abs/2210.06551) <a href="https://pytorch.org/get-started/locally/"><img alt="PyTorch" src="https://img.shields.io/badge/PyTorch-ee4c2c?logo=pytorch&logoColor=white"></a> <a href="https://youtu.be/slSPQ9hNLjM"><img alt="PyTorch" src="https://img.shields.io/badge/-Demo-lightgrey?logo=youtube&color=lightgray"></a> 
 
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/motionbert-unified-pretraining-for-human/monocular-3d-human-pose-estimation-on-human3)](https://paperswithcode.com/sota/monocular-3d-human-pose-estimation-on-human3?p=motionbert-unified-pretraining-for-human)[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/motionbert-unified-pretraining-for-human/one-shot-3d-action-recognition-on-ntu-rgbd)](https://paperswithcode.com/sota/one-shot-3d-action-recognition-on-ntu-rgbd?p=motionbert-unified-pretraining-for-human)
 
-### [Project Page](https://motionbert.github.io/) | [Paper](https://arxiv.org/pdf/2210.06551.pdf)
-
-This is the official PyTorch implementation of the paper "MotionBERT: Unified Pretraining for Human Motion Analysis".
+This is the official PyTorch implementation of the paper *"[Learning Human Motion Representations: A Unified Perspective](https://motionbert.github.io/)"*.
 
 <img src="https://motionbert.github.io/assets/teaser.gif" alt="" style="zoom: 60%;" />
 
@@ -18,16 +18,26 @@ conda install pytorch torchvision torchaudio pytorch-cuda=11.6 -c pytorch -c nvi
 pip install -r requirements.txt
 ```
 
-## Usage
+
+
+## Getting Started
 
 | Task                              | Document                                                     |
 | --------------------------------- | ------------------------------------------------------------ |
-| Pretrain                          | TBD                                                          |
+| Pretrain                          | [docs/pretrain.md](docs/pretrain.md)                                                          |
 | 3D human pose estimation          | [docs/pose3d.md](docs/pose3d.md) |
 | Skeleton-based action recognition | [docs/action.md](docs/action.md) |
 | Mesh recovery                     | [docs/mesh.md](docs/mesh.md) |
 
-## Using MotionBERT for new tasks
+
+
+## Applications
+
+### In-the-wild inference (for custom videos)
+
+Please refer to [docs/inference.md](docs/inference.md).
+
+### Using MotionBERT for *human-centric* video representations
 
 ```python
 '''	    
@@ -35,7 +45,7 @@ pip install -r requirements.txt
     type = <class 'torch.Tensor'>
     shape = [batch size * frames * joints(17) * channels(3)]
     
-  MotionBERT: pretrained MotionBERT
+  MotionBERT: pretrained human motion encoder
     type = <class 'lib.model.DSTformer.DSTformer'>
     
   E: encoded motion representation
@@ -45,40 +55,54 @@ pip install -r requirements.txt
 E = MotionBERT.get_representation(x)
 ```
 
-**Hints**
 
-1. The model could handle different input lengths (no more than 243 frames). No need to explicitly specify the input length elsewhere.
-2. The model uses 17 body keypoints ([H36M format](https://github.com/JimmySuen/integral-human-pose/blob/master/pytorch_projects/common_pytorch/dataset/hm36.py#L32)). If you are using other formats, please convert them before feeding to MotionBERT.
-3. Please refer to [model_action.py](lib/model/model_action.py) and [model_mesh.py](lib/model/model_mesh.py) for examples of (easily) adapting MotionBERT to different downstream tasks.
+
+> **Hints**
+>
+> 1. The model could handle different input lengths (no more than 243 frames). No need to explicitly specify the input length elsewhere.
+> 2. The model uses 17 body keypoints ([H36M format](https://github.com/JimmySuen/integral-human-pose/blob/master/pytorch_projects/common_pytorch/dataset/hm36.py#L32)). If you are using other formats, please convert them before feeding to MotionBERT. 
+> 3. Please refer to [model_action.py](lib/model/model_action.py) and [model_mesh.py](lib/model/model_mesh.py) for examples of (easily) adapting MotionBERT to different downstream tasks.
+> 4. For RGB videos, you need to extract 2D poses ([inference.md](docs/inference.md)), convert the keypoint format ([dataset_wild.py](lib/data/dataset_wild.py)), and then feed to MotionBERT ([infer_wild.py](infer_wild.py)).
+>
+
+
 
 ## Model Zoo
 
-| Model                                                  | Download Link                                                | Performance      |
-| ------------------------------------------------------ | ------------------------------------------------------------ | ---------------- |
-| MotionBERT (pretrained motion encoder weights)         | [OneDrive](https://1drv.ms/f/s!AvAdh0LSjEOlgQhYxzswPARRLtZ5) | -                |
-| 3D Pose (H36M-SH, scratch)                             | [OneDrive](https://1drv.ms/f/s!AvAdh0LSjEOlgQ4voapR8XVTGcVj) | 39.1mm (MPJPE)   |
-| 3D Pose (H36M-SH, finetuned)                           | [OneDrive](https://1drv.ms/f/s!AvAdh0LSjEOlgQ8voapR8XVTGcVj) | 37.4mm (MPJPE)   |
-| Action Recognition (NTU-RGB+D x-sub, finetuned)        | [OneDrive](https://1drv.ms/f/s!AvAdh0LSjEOlgQovoapR8XVTGcVj) | 97.3% (Top1 Acc) |
-| Action Recognition (NTU-RGB+D x-view, finetuned)       | [OneDrive](https://1drv.ms/f/s!AvAdh0LSjEOlgQsvoapR8XVTGcVj) | 92.8% (Top1 Acc) |
-| Action Recognition (NTU-RGB+D-120 one-shot, finetuned) | [OneDrive](https://1drv.ms/f/s!AvAdh0LSjEOlgQwvoapR8XVTGcVj) | 67.4% (Top1 Acc) |
-| Mesh Recovery (with 3DPW, finetuned)                   | [OneDrive](https://1drv.ms/f/s!AvAdh0LSjEOlgRAvoapR8XVTGcVj) | 94.2mm (MPVE)    |
+<img src="https://motionbert.github.io/assets/demo.gif" alt="" style="zoom: 50%;" />
+
+| Model                           | Download Link                                                | Config                                                       | Performance      |
+| ------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ | ---------------- |
+| MotionBERT (162MB)              | [OneDrive](https://1drv.ms/f/s!AvAdh0LSjEOlgS425shtVi9e5reN?e=6UeBa2) | [pretrain/MB_pretrain.yaml](configs/pretrain/MB_pretrain.yaml) | -                |
+| MotionBERT-Lite (61MB)          | [OneDrive](https://1drv.ms/f/s!AvAdh0LSjEOlgS27Ydcbpxlkl0ng?e=rq2Btn) | [pretrain/MB_lite.yaml](configs/pretrain/MB_lite.yaml)       | -                |
+| 3D Pose (H36M-SH, scratch)      | [OneDrive](https://1drv.ms/f/s!AvAdh0LSjEOlgSvNejMQ0OHxMGZC?e=KcwBk1) | [pose3d/MB_train_h36m.yaml](configs/pose3d/MB_train_h36m.yaml) | 39.2mm (MPJPE)   |
+| 3D Pose (H36M-SH, ft)           | [OneDrive](https://1drv.ms/f/s!AvAdh0LSjEOlgSoTqtyR5Zsgi8_Z?e=rn4VJf) | [pose3d/MB_ft_h36m.yaml](configs/pose3d/MB_ft_h36m.yaml)     | 37.2mm (MPJPE)   |
+| Action Recognition (x-sub, ft)  | [OneDrive](https://1drv.ms/f/s!AvAdh0LSjEOlgTX23yT_NO7RiZz-?e=nX6w2j) | [action/MB_ft_NTU60_xsub](configs/action/MB_ft_NTU60_xsub.yaml) | 97.2% (Top1 Acc) |
+| Action Recognition (x-view, ft) | [OneDrive](https://1drv.ms/f/s!AvAdh0LSjEOlgTaNiXw2Nal-g37M?e=lSkE4T) | [action/MB_ft_NTU60_xview](configs/action/MB_ft_NTU60_xview.yaml) | 93.0% (Top1 Acc) |
+| Mesh (with 3DPW, ft)            | [OneDrive](https://1drv.ms/f/s!AvAdh0LSjEOlgTmgYNslCDWMNQi9?e=WjcB1F) | [mesh/MB_ft_pw3d](configs/mesh/MB_ft_pw3d.yaml)              | 88.1mm (MPVE)    |
+
+In most use cases (especially with finetuning), `MotionBERT-Lite` gives a similar performance with lower computation overhead. 
+
+
 
 ## TODO
 
-- [ ] Scripts and docs for pretraining
+- [x] Scripts and docs for pretraining
 
-- [ ] Demo for custom videos
+- [x] Demo for custom videos
 
 
-## BibTeX
 
-If you find our work useful for your research, please consider citing the paper:
+## Citation
+
+If you find our work useful for your project, please consider citing the paper:
 
 ```bibtex
 @article{motionbert2022,
-  title   =   {MotionBERT: Unified Pretraining for Human Motion Analysis}, 
+  title   =   {Learning Human Motion Representations: A Unified Perspective}, 
   author  =   {Zhu, Wentao and Ma, Xiaoxuan and Liu, Zhaoyang and Liu, Libin and Wu, Wayne and Wang, Yizhou},
   year    =   {2022},
   journal =   {arXiv preprint arXiv:2210.06551},
 }
 ```
+

@@ -75,13 +75,14 @@ def posetrack2h36m(x):
 
 
 class PoseTrackDataset2D(Dataset):
-    def __init__(self, flip=True):
+    def __init__(self, flip=True, scale_range=[0.25, 1]):
         super(PoseTrackDataset2D, self).__init__()
         self.flip = flip
         data_root = "data/motion2d/posetrack18_annotations/train/"
         file_list = sorted(os.listdir(data_root))
         all_motions = []
         all_motions_filtered = []
+        self.scale_range = scale_range
         for filename in file_list:
             with open(os.path.join(data_root, filename), 'r') as file:
                 json_dict = json.load(file)
@@ -99,7 +100,7 @@ class PoseTrackDataset2D(Dataset):
             motion = np.array(motion[:30])
             if np.sum(motion[:,:,2]) <= 306:  # Valid joint num threshold
                 continue
-            motion = crop_scale(motion) 
+            motion = crop_scale(motion, self.scale_range) 
             motion = posetrack2h36m(motion)
             motion[motion[:,:,2]==0] = 0
             if np.sum(motion[:,0,2]) < 30:
@@ -120,9 +121,10 @@ class PoseTrackDataset2D(Dataset):
         return motion_2d, motion_2d
     
 class InstaVDataset2D(Dataset):
-    def __init__(self, n_frames=81, data_stride=27, flip=True, valid_threshold=0.0):
+    def __init__(self, n_frames=81, data_stride=27, flip=True, valid_threshold=0.0, scale_range=[0.25, 1]):
         super(InstaVDataset2D, self).__init__()
         self.flip = flip
+        self.scale_range = scale_range
         motion_all = np.load('data/motion2d/InstaVariety/motion_all.npy')
         id_all = np.load('data/motion2d/InstaVariety/id_all.npy')
         split_id = split_clips(id_all, n_frames, data_stride)  
@@ -136,8 +138,11 @@ class InstaVDataset2D(Dataset):
 
     def __getitem__(self, index):
         'Generates one sample of data'
-        motion_2d = torch.FloatTensor(self.motions_2d[index])
+        motion_2d = self.motions_2d[index]
+        motion_2d = crop_scale(motion_2d, self.scale_range) 
+        motion_2d[motion_2d[:,:,2]==0] = 0
         if self.flip and random.random()>0.5:                       
             motion_2d = flip_data(motion_2d)
+        motion_2d = torch.FloatTensor(motion_2d)
         return motion_2d, motion_2d
         

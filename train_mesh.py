@@ -30,10 +30,6 @@ from lib.data.dataset_mesh import MotionSMPL
 from lib.model.model_mesh import MeshRegressor
 from torch.utils.data import DataLoader
 
-random.seed(0)
-np.random.seed(0)
-torch.manual_seed(0)
-
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, default="configs/pretrain.yaml", help="Path to the config file.")
@@ -43,37 +39,31 @@ def parse_args():
     parser.add_argument('-e', '--evaluate', default='', type=str, metavar='FILENAME', help='checkpoint to evaluate (file name)')
     parser.add_argument('-freq', '--print_freq', default=100)
     parser.add_argument('-ms', '--selection', default='latest_epoch.bin', type=str, metavar='FILENAME', help='checkpoint to finetune (file name)')
+    parser.add_argument('-sd', '--seed', default=0, type=int, help='random seed')
     opts = parser.parse_args()
     return opts
 
-def sixteen_to_h36m(data):
-    """
-    Return:
-        [N, 17, 2] or [N, 17, 3] with confidence, spine obtained by average
-    """
-    N, k, z = data.shape
-    assert k == 16
-    output = torch.zeros((N, 17, 3))
-    mpii_index = list(range(16))
-    h36m_index = [3, 2, 1, 4, 5, 6, 0, 8, 9, 10, 16, 15, 14, 11, 12, 13]
-    output[:, h36m_index, :] = data[:, mpii_index, :]
-    output[:, 7, :] = (data[..., 6, :] + data[..., 7, :]) / 2
-    return output
-
-def save_obj(v, f, file_name='output.obj'):
-    obj_file = open(file_name, 'w')
-    for i in range(len(v)):
-        obj_file.write('v ' + str(v[i][0]) + ' ' + str(v[i][1]) + ' ' + str(v[i][2]) + '\n')
-    for i in range(len(f)):
-        obj_file.write('f ' + str(f[i][0]+1) + '/' + str(f[i][0]+1) + ' ' + str(f[i][1]+1) + '/' + str(f[i][1]+1) + ' ' + str(f[i][2]+1) + '/' + str(f[i][2]+1) + '\n')
-    obj_file.close()
+def set_random_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
 
 def validate(test_loader, model, criterion, dataset_name='h36m'):
     model.eval()
     print(f'===========> validating {dataset_name}')
     batch_time = AverageMeter()
     losses = AverageMeter()
-    losses_dict = {'loss_kp_3d': AverageMeter(), 'loss_pose': AverageMeter(), 'loss_shape': AverageMeter()}
+    losses_dict = {'loss_3d_pos': AverageMeter(), 
+                   'loss_3d_scale': AverageMeter(), 
+                   'loss_3d_velocity': AverageMeter(),
+                   'loss_lv': AverageMeter(), 
+                   'loss_lg': AverageMeter(), 
+                   'loss_a': AverageMeter(), 
+                   'loss_av': AverageMeter(), 
+                   'loss_pose': AverageMeter(), 
+                   'loss_shape': AverageMeter(),
+                   'loss_norm': AverageMeter(),
+    }
     mpjpes = AverageMeter()
     mpves = AverageMeter()
     results = defaultdict(list)
@@ -116,8 +106,17 @@ def validate(test_loader, model, criterion, dataset_name='h36m'):
                 for k, v in output_flip[0].items():
                     output_final[0][k] = (output[0][k] + output_flip_back[0][k])*0.5
                 output = output_final
-            loss, loss_dict = criterion(output, batch_gt)
-
+            loss_dict = criterion(output, batch_gt)
+            loss = args.lambda_3d      * loss_dict['loss_3d_pos']      + \
+                   args.lambda_scale   * loss_dict['loss_3d_scale']    + \
+                   args.lambda_3dv     * loss_dict['loss_3d_velocity'] + \
+                   args.lambda_lv      * loss_dict['loss_lv']          + \
+                   args.lambda_lg      * loss_dict['loss_lg']          + \
+                   args.lambda_a       * loss_dict['loss_a']           + \
+                   args.lambda_av      * loss_dict['loss_av']          + \
+                   args.lambda_shape   * loss_dict['loss_shape']       + \
+                   args.lambda_pose    * loss_dict['loss_pose']        + \
+                   args.lambda_norm    * loss_dict['loss_norm'] 
             # update metric
             losses.update(loss.item(), batch_size)
             loss_str = ''
@@ -158,8 +157,9 @@ def validate(test_loader, model, criterion, dataset_name='h36m'):
     err_str = ''
     for err_key, err_val in error_dict.items():
         err_str += '{}: {:.2f}mm \t'.format(err_key, err_val)
+    print(f'=======================> {dataset_name} validation done: ', loss_str)
     print(f'=======================> {dataset_name} validation done: ', err_str)
-    return losses.avg, error_dict['mpjpe'], error_dict['pa_mpjpe'], error_dict['mpve']
+    return losses.avg, error_dict['mpjpe'], error_dict['pa_mpjpe'], error_dict['mpve'], losses_dict
 
 
 def train_epoch(args, opts, model, train_loader, losses_train, losses_dict, mpjpes, mpves, criterion, optimizer, batch_time, data_time, epoch):
@@ -176,7 +176,17 @@ def train_epoch(args, opts, model, train_loader, losses_train, losses_dict, mpjp
             batch_input = batch_input.cuda().float()
         output = model(batch_input)
         optimizer.zero_grad()
-        loss_train, loss_dict = criterion(output, batch_gt)
+        loss_dict = criterion(output, batch_gt)
+        loss_train = args.lambda_3d      * loss_dict['loss_3d_pos']      + \
+                     args.lambda_scale   * loss_dict['loss_3d_scale']    + \
+                     args.lambda_3dv     * loss_dict['loss_3d_velocity'] + \
+                     args.lambda_lv      * loss_dict['loss_lv']          + \
+                     args.lambda_lg      * loss_dict['loss_lg']          + \
+                     args.lambda_a       * loss_dict['loss_a']           + \
+                     args.lambda_av      * loss_dict['loss_av']          + \
+                     args.lambda_shape   * loss_dict['loss_shape']       + \
+                     args.lambda_pose    * loss_dict['loss_pose']        + \
+                     args.lambda_norm    * loss_dict['loss_norm'] 
         losses_train.update(loss_train.item(), batch_size)
         loss_str = ''
         for k, v in loss_dict.items():
@@ -225,13 +235,8 @@ def train_with_config(args, opts):
             model_backbone = load_pretrained_weights(model_backbone, checkpoint)
     if args.partial_train:
         model_backbone = partial_train_layers(model_backbone, args.partial_train)
-    model = MeshRegressor(args, backbone=model_backbone, dim_rep=args.dim_rep, hidden_dim=args.hidden_dim, dropout_ratio=args.dropout)
-    criterion = MeshLoss(
-        loss_3d=args.loss_3d,
-        loss_pose=args.loss_pose,
-        loss_shape=args.loss_shape,
-        loss_type=args.loss_type,
-    )
+    model = MeshRegressor(args, backbone=model_backbone, dim_rep=args.dim_rep, hidden_dim=args.hidden_dim, dropout_ratio=args.dropout, num_joints=args.num_joints)
+    criterion = MeshLoss(loss_type = args.loss_type)
     best_jpe = 9999.0
     model_params = 0
     for parameter in model.parameters():
@@ -262,16 +267,16 @@ def train_with_config(args, opts):
         test_loader = DataLoader(mesh_val, **testloader_params)
         print('INFO: Training on {} batches (h36m)'.format(len(train_loader)))
 
-    if args.train_pw3d:
-        mesh_train_pw3d = MotionSMPL(args, data_split='train', dataset="pw3d")
-        train_loader_pw3d = DataLoader(mesh_train_pw3d, **trainloader_params)
-        print('INFO: Training on {} batches (pw3d)'.format(len(train_loader_pw3d)))
-    mesh_val_pw3d = MotionSMPL(args, data_split='test', dataset="pw3d")
-    test_loader_pw3d = DataLoader(mesh_val_pw3d, **testloader_params)
-    if hasattr(args, "dt_file_coco"):
-        mesh_train_coco = MotionSMPL(args, data_split='train', dataset="coco")
-        mesh_val_coco = MotionSMPL(args, data_split='test', dataset="coco")
-        trainloader_params = {
+    if hasattr(args, "dt_file_pw3d"):
+        if args.train_pw3d:
+            mesh_train_pw3d = MotionSMPL(args, data_split='train', dataset="pw3d")
+            train_loader_pw3d = DataLoader(mesh_train_pw3d, **trainloader_params)
+            print('INFO: Training on {} batches (pw3d)'.format(len(train_loader_pw3d)))
+        mesh_val_pw3d = MotionSMPL(args, data_split='test', dataset="pw3d")
+        test_loader_pw3d = DataLoader(mesh_val_pw3d, **testloader_params)
+    
+    
+    trainloader_img_params = {
             'batch_size': args.batch_size_img,
             'shuffle': True,
             'num_workers': 8,
@@ -279,7 +284,7 @@ def train_with_config(args, opts):
             'prefetch_factor': 4,
             'persistent_workers': True
         }
-        testloader_params = {
+    testloader_img_params = {
             'batch_size': args.batch_size_img,
             'shuffle': False,
             'num_workers': 8,
@@ -287,8 +292,12 @@ def train_with_config(args, opts):
             'prefetch_factor': 4,
             'persistent_workers': True
         }
-        train_loader_coco = DataLoader(mesh_train_coco, **trainloader_params)
-        test_loader_coco = DataLoader(mesh_val_coco, **testloader_params)
+    
+    if hasattr(args, "dt_file_coco"):
+        mesh_train_coco = MotionSMPL(args, data_split='train', dataset="coco")
+        mesh_val_coco = MotionSMPL(args, data_split='test', dataset="coco")
+        train_loader_coco = DataLoader(mesh_train_coco, **trainloader_img_params)
+        test_loader_coco = DataLoader(mesh_val_coco, **testloader_img_params)
         print('INFO: Training on {} batches (coco)'.format(len(train_loader_coco)))
 
     if torch.cuda.is_available():
@@ -305,10 +314,10 @@ def train_with_config(args, opts):
         model.load_state_dict(checkpoint['model'], strict=True)
     if not opts.evaluate:
         optimizer = optim.AdamW(
-            [     {"params": filter(lambda p: p.requires_grad, model.module.backbone.parameters()), "lr": args.lr_backbone},
-                  {"params": filter(lambda p: p.requires_grad, model.module.head.parameters()), "lr": args.lr_head},
-            ],      lr=args.lr_backbone, 
-                    weight_decay=args.weight_decay
+                [     {"params": filter(lambda p: p.requires_grad, model.module.backbone.parameters()), "lr": args.lr_backbone},
+                      {"params": filter(lambda p: p.requires_grad, model.module.head.parameters()), "lr": args.lr_head},
+                ],      lr=args.lr_backbone, 
+                        weight_decay=args.weight_decay
         )
         scheduler = StepLR(optimizer, step_size=1, gamma=args.lr_decay)
         st = 0
@@ -326,35 +335,52 @@ def train_with_config(args, opts):
         for epoch in range(st, args.epochs):
             print('Training epoch %d.' % epoch)
             losses_train = AverageMeter()
-            losses_dict = {'loss_kp_3d': AverageMeter(), 'loss_pose': AverageMeter(), 'loss_shape': AverageMeter()}
+            losses_dict = {
+                'loss_3d_pos': AverageMeter(), 
+                'loss_3d_scale': AverageMeter(), 
+                'loss_3d_velocity': AverageMeter(),
+                'loss_lv': AverageMeter(), 
+                'loss_lg': AverageMeter(), 
+                'loss_a': AverageMeter(), 
+                'loss_av': AverageMeter(), 
+                'loss_pose': AverageMeter(), 
+                'loss_shape': AverageMeter(),
+                'loss_norm': AverageMeter(),
+            }
             mpjpes = AverageMeter()
             mpves = AverageMeter()
             batch_time = AverageMeter()
             data_time = AverageMeter()
-
-            if hasattr(args, "dt_file_coco"):
-                train_epoch(args, opts, model, train_loader_coco, losses_train, losses_dict, mpjpes, mpves, criterion, optimizer, batch_time, data_time, epoch)
-
-            if hasattr(args, "dt_file_h36m"):
+            
+            if hasattr(args, "dt_file_h36m") and epoch < args.warmup_h36m:
                 train_epoch(args, opts, model, train_loader, losses_train, losses_dict, mpjpes, mpves, criterion, optimizer, batch_time, data_time, epoch)
-                test_loss, test_mpjpe, test_pa_mpjpe, test_mpve = validate(test_loader, model, criterion, 'h36m')
+                test_loss, test_mpjpe, test_pa_mpjpe, test_mpve, test_losses_dict = validate(test_loader, model, criterion, 'h36m')
+                for k, v in test_losses_dict.items():
+                    train_writer.add_scalar('test_loss/'+k, v.avg, epoch + 1)
                 train_writer.add_scalar('test_loss', test_loss, epoch + 1)
                 train_writer.add_scalar('test_mpjpe', test_mpjpe, epoch + 1)
                 train_writer.add_scalar('test_pa_mpjpe', test_pa_mpjpe, epoch + 1)
                 train_writer.add_scalar('test_mpve', test_mpve, epoch + 1)
 
-            if args.train_pw3d:
-                train_epoch(args, opts, model, train_loader_pw3d, losses_train, losses_dict, mpjpes, mpves, criterion, optimizer, batch_time, data_time, epoch)            
-            test_loss_pw3d, test_mpjpe_pw3d, test_pa_mpjpe_pw3d, test_mpve_pw3d = validate(test_loader_pw3d, model, criterion, 'pw3d')       
+            if hasattr(args, "dt_file_coco") and epoch < args.warmup_coco:
+                train_epoch(args, opts, model, train_loader_coco, losses_train, losses_dict, mpjpes, mpves, criterion, optimizer, batch_time, data_time, epoch)
+            
+            if hasattr(args, "dt_file_pw3d"):
+                if args.train_pw3d:
+                    train_epoch(args, opts, model, train_loader_pw3d, losses_train, losses_dict, mpjpes, mpves, criterion, optimizer, batch_time, data_time, epoch)    
+                test_loss_pw3d, test_mpjpe_pw3d, test_pa_mpjpe_pw3d, test_mpve_pw3d, test_losses_dict_pw3d = validate(test_loader_pw3d, model, criterion, 'pw3d')  
+                for k, v in test_losses_dict_pw3d.items():
+                    train_writer.add_scalar('test_loss_pw3d/'+k, v.avg, epoch + 1)
+                train_writer.add_scalar('test_loss_pw3d', test_loss_pw3d, epoch + 1)
+                train_writer.add_scalar('test_mpjpe_pw3d', test_mpjpe_pw3d, epoch + 1)
+                train_writer.add_scalar('test_pa_mpjpe_pw3d', test_pa_mpjpe_pw3d, epoch + 1)
+                train_writer.add_scalar('test_mpve_pw3d', test_mpve_pw3d, epoch + 1)
+            
             for k, v in losses_dict.items():
                 train_writer.add_scalar('train_loss/'+k, v.avg, epoch + 1)
             train_writer.add_scalar('train_loss', losses_train.avg, epoch + 1)
             train_writer.add_scalar('train_mpjpe', mpjpes.avg, epoch + 1)
             train_writer.add_scalar('train_mpve', mpves.avg, epoch + 1)
-            train_writer.add_scalar('test_loss_pw3d', test_loss_pw3d, epoch + 1)
-            train_writer.add_scalar('test_mpjpe_pw3d', test_mpjpe_pw3d, epoch + 1)
-            train_writer.add_scalar('test_pa_mpjpe_pw3d', test_pa_mpjpe_pw3d, epoch + 1)
-            train_writer.add_scalar('test_mpve_pw3d', test_mpve_pw3d, epoch + 1)
                 
             # Decay learning rate exponentially
             scheduler.step()
@@ -381,10 +407,14 @@ def train_with_config(args, opts):
                 'best_jpe' : best_jpe
             }, chk_path)
 
+            if hasattr(args, "dt_file_pw3d"):
+                best_jpe_cur = test_mpjpe_pw3d
+            else:
+                best_jpe_cur = test_mpjpe
             # Save best checkpoint.
             best_chk_path = os.path.join(opts.checkpoint, 'best_epoch.bin'.format(epoch))
-            if test_mpjpe_pw3d < best_jpe:
-                best_jpe = test_mpjpe_pw3d
+            if best_jpe_cur < best_jpe:
+                best_jpe = best_jpe_cur
                 print("save best checkpoint")
                 torch.save({
                 'epoch': epoch+1,
@@ -396,10 +426,12 @@ def train_with_config(args, opts):
 
     if opts.evaluate:
         if hasattr(args, "dt_file_h36m"):
-            test_loss, test_mpjpe, test_pa_mpjpe, test_mpve = validate(test_loader, model, criterion, 'h36m')
-        test_loss_pw3d, test_mpjpe_pw3d, test_pa_mpjpe_pw3d, test_mpve_pw3d = validate(test_loader_pw3d, model, criterion, 'pw3d')
+            test_loss, test_mpjpe, test_pa_mpjpe, test_mpve, _ = validate(test_loader, model, criterion, 'h36m')
+        if hasattr(args, "dt_file_pw3d"):
+            test_loss_pw3d, test_mpjpe_pw3d, test_pa_mpjpe_pw3d, test_mpve_pw3d, _ = validate(test_loader_pw3d, model, criterion, 'pw3d')
 
 if __name__ == "__main__":
     opts = parse_args()
+    set_random_seed(opts.seed)
     args = get_config(opts.config)
     train_with_config(args, opts)

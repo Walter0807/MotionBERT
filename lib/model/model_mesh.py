@@ -10,6 +10,7 @@ class SMPLRegressor(nn.Module):
     def __init__(self, args, dim_rep=512, num_joints=17, hidden_dim=2048, dropout_ratio=0.):
         super(SMPLRegressor, self).__init__()
         param_pose_dim = 24 * 6
+        self.dropout = nn.Dropout(p=dropout_ratio)
         self.fc1 = nn.Linear(num_joints*dim_rep, hidden_dim)
         self.pool2 = nn.AdaptiveAvgPool2d((None, 1))
         self.fc2 = nn.Linear(num_joints*dim_rep, hidden_dim)
@@ -37,14 +38,18 @@ class SMPLRegressor(nn.Module):
         N, T, J, C = feat.shape
         NT = N * T
         feat = feat.reshape(N, T, -1)
-        
+
         feat_pose = feat.reshape(NT, -1)     # (N*T, J*C)
+
+        feat_pose = self.dropout(feat_pose)
         feat_pose = self.fc1(feat_pose)
         feat_pose = self.bn1(feat_pose)
         feat_pose = self.relu1(feat_pose)    # (NT, C)
 
         feat_shape = feat.permute(0,2,1)     # (N, T, J*C) -> (N, J*C, T)
         feat_shape = self.pool2(feat_shape).reshape(N, -1)          # (N, J*C)
+
+        feat_shape = self.dropout(feat_shape)
         feat_shape = self.fc2(feat_shape)
         feat_shape = self.bn2(feat_shape)
         feat_shape = self.relu2(feat_shape)     # (N, C)
@@ -78,6 +83,7 @@ class MeshRegressor(nn.Module):
     def __init__(self, args, backbone, dim_rep=512, num_joints=17, hidden_dim=2048, dropout_ratio=0.5):
         super(MeshRegressor, self).__init__()
         self.backbone = backbone
+        self.feat_J = num_joints
         self.head = SMPLRegressor(args, dim_rep, num_joints, hidden_dim, dropout_ratio)
         
     def forward(self, x, init_pose=None, init_shape=None, n_iter=3):
@@ -86,6 +92,7 @@ class MeshRegressor(nn.Module):
         '''
         N, T, J, C = x.shape  
         feat = self.backbone.get_representation(x)
+        feat = feat.reshape([N, T, self.feat_J, -1])      # (N, T, J, C)
         smpl_output = self.head(feat)
         for s in smpl_output:
             s['theta'] = s['theta'].reshape(N, T, -1)

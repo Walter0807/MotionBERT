@@ -94,7 +94,7 @@ def train_with_config(args, opts):
             model_backbone = load_pretrained_weights(model_backbone, checkpoint)
     if args.partial_train:
         model_backbone = partial_train_layers(model_backbone, args.partial_train)
-    model = ActionNet(backbone=model_backbone, dim_rep=args.dim_rep, num_classes=args.action_classes, dropout_ratio=args.dropout_ratio, version=args.model_version, hidden_dim=args.hidden_dim)
+    model = ActionNet(backbone=model_backbone, dim_rep=args.dim_rep, num_classes=args.action_classes, dropout_ratio=args.dropout_ratio, version=args.model_version, hidden_dim=args.hidden_dim, num_joints=args.num_joints)
     criterion = torch.nn.CrossEntropyLoss()
     if torch.cuda.is_available():
         model = nn.DataParallel(model)
@@ -109,7 +109,7 @@ def train_with_config(args, opts):
     trainloader_params = {
           'batch_size': args.batch_size,
           'shuffle': True,
-          'num_workers': 10,
+          'num_workers': 8,
           'pin_memory': True,
           'prefetch_factor': 4,
           'persistent_workers': True
@@ -117,7 +117,7 @@ def train_with_config(args, opts):
     testloader_params = {
           'batch_size': args.batch_size,
           'shuffle': False,
-          'num_workers': 10,
+          'num_workers': 8,
           'pin_memory': True,
           'prefetch_factor': 4,
           'persistent_workers': True

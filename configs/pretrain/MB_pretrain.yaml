@@ -1,17 +1,18 @@
 # General  
-train_2d: False
+train_2d: True
 no_eval: False
 finetune: False
 partial_train: null
 
 # Traning 
-epochs: 120
+epochs: 90
 checkpoint_frequency: 30
-batch_size: 32 
+batch_size: 64 
 dropout: 0.0
-learning_rate: 0.0002
+learning_rate: 0.0005
 weight_decay: 0.01
 lr_decay: 0.99
+pretrain_3d_curriculum: 30
 
 # Model
 maxlen: 243
@@ -24,7 +25,7 @@ att_fuse: True
 
 # Data
 data_root: data/motion3d/MB3D_f243s81/
-subset_list: [H36M-SH]
+subset_list: [AMASS, H36M-SH]
 dt_file: h36m_sh_conf_cam_source_final.pkl
 clip_len: 243
 data_stride: 81
@@ -43,9 +44,10 @@ lambda_a: 0.0
 lambda_av: 0.0
 
 # Augmentation
-synthetic: False
+synthetic: True   # synthetic: don't use 2D detection results, fake it (from 3D)
 flip: True
-mask_ratio: 0.
-mask_T_ratio: 0.
-noise: False
-
+mask_ratio: 0.05
+mask_T_ratio: 0.1
+noise: True
+noise_path: params/synthetic_noise.pth
+d2c_params_path: params/d2c_params.pkl

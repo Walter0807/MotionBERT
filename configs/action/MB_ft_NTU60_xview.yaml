@@ -3,7 +3,7 @@ finetune: True
 partial_train: null
 
 # Traning 
-epochs: 200
+epochs: 300
 batch_size: 32 
 lr_backbone: 0.0001
 lr_head: 0.001
@@ -13,8 +13,8 @@ lr_decay: 0.99
 # Model
 model_version: class
 maxlen: 243
-dim_feat: 256
-mlp_ratio: 4
+dim_feat: 512
+mlp_ratio: 2
 depth: 5
 dim_rep: 512
 num_heads: 8

@@ -91,7 +91,7 @@ def train_with_config(args, opts):
             model_backbone.load_state_dict(new_state_dict, strict=True)
             if args.partial_train:
                 model_backbone = partial_train_layers(model_backbone, args.partial_train)
-    model = ActionNet(backbone=model_backbone, dim_rep=args.dim_rep, dropout_ratio=args.dropout_ratio, version=args.model_version, hidden_dim=args.hidden_dim)
+    model = ActionNet(backbone=model_backbone, dim_rep=args.dim_rep, dropout_ratio=args.dropout_ratio, version=args.model_version, hidden_dim=args.hidden_dim, num_joints=args.num_joints)
     criterion = SupConLoss(temperature=args.temp)
     
     if torch.cuda.is_available():

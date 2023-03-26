@@ -10,7 +10,7 @@ import json
 import pickle
 import math
 from torch.utils.data import Dataset, DataLoader
-from lib.data.operations import crop_scale
+from lib.utils.utils_data import crop_scale
 
 def halpe2h36m(x):
     '''
@@ -64,23 +64,32 @@ def halpe2h36m(x):
     y[:,16,:] = x[:,10,:]
     return y
     
-def read_input(json_path='alphapose-results.json'):
+def read_input(json_path, vid_size, scale_range, focus):
     with open(json_path, "r") as read_file:
         results = json.load(read_file)
     kpts_all = []
     for item in results:
+        if focus!=None and item['idx']!=focus:
+            continue
         kpts = np.array(item['keypoints']).reshape([-1,3])
         kpts_all.append(kpts)
     kpts_all = np.array(kpts_all)
     kpts_all = halpe2h36m(kpts_all)
-    motion = crop_scale(kpts_all, [1.3, 1.3]) 
+    if vid_size:
+        w, h = vid_size
+        scale = min(w,h) / 2.0
+        kpts_all[:,:,:2] = kpts_all[:,:,:2] - np.array([w, h]) / 2.0
+        kpts_all[:,:,:2] = kpts_all[:,:,:2] / scale
+        motion = kpts_all
+    if scale_range:
+        motion = crop_scale(kpts_all, scale_range) 
     return motion.astype(np.float32)
 
 class WildDetDataset(Dataset):
-    def __init__(self, json_path, clip_len=243):
+    def __init__(self, json_path, clip_len=243, vid_size=None, scale_range=None, focus=None):
         self.json_path = json_path
         self.clip_len = clip_len
-        self.vid_all = read_input(json_path)
+        self.vid_all = read_input(json_path, vid_size, scale_range, focus)
         
     def __len__(self):
         'Denotes the total number of samples'
