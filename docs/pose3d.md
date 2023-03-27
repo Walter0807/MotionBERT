@@ -22,8 +22,6 @@ python train.py \
 --checkpoint checkpoint/pose3d/MB_train_h36m
 ```
 
-Note: Increasing the initial feature dimension (`MB_train_h36m_wide.yaml`) would additionally lower the error (MPJPE=38.8mm) at the cost of model size and training time.
-
 **Finetune from pretrained MotionBERT:**
 
 ```bash
