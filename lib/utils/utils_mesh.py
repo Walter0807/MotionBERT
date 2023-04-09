@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from torch.nn import functional as F
 import copy
-# from lib.utils.rotation_conversions import axis_angle_to_matrix, matrix_to_rotation_6d
+from lib.utils.rotation_conversions import axis_angle_to_matrix, matrix_to_rotation_6d
 
 
 def batch_rodrigues(axisang):
@@ -512,10 +512,10 @@ def flip_thetas_batch(thetas):
 
     return thetas_flip.reshape(*thetas.shape[:2], -1)
 
-# def smpl_aa_to_ortho6d(smpl_aa):
-# #     [...,72] -> [...,144]
-#     rot_aa = smpl_aa.reshape([-1,24,3])
-#     rotmat = axis_angle_to_matrix(rot_aa)
-#     rot6d = matrix_to_rotation_6d(rotmat)
-#     rot6d = rot6d.reshape(-1,24*6)
-#     return rot6d
+def smpl_aa_to_ortho6d(smpl_aa):
+#     [...,72] -> [...,144]
+    rot_aa = smpl_aa.reshape([-1,24,3])
+    rotmat = axis_angle_to_matrix(rot_aa)
+    rot6d = matrix_to_rotation_6d(rotmat)
+    rot6d = rot6d.reshape(-1,24*6)
+    return rot6d

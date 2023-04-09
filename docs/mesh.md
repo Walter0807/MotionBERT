@@ -45,13 +45,33 @@ python train_mesh.py \
 # with 3DPW
 python train_mesh.py \
 --config configs/mesh/MB_train_pw3d.yaml \
---evaluate checkpoint/mesh/MB_train_pw3d/best_epoch.bin 
+--evaluate checkpoint/mesh/MB_train_pw3d/best_epoch.bin
 
 # H36M
 python train_mesh.py \
 --config configs/mesh/MB_train_h36m.yaml \
---evaluate checkpoint/mesh/MB_train_h36m/best_epoch.bin 
+--evaluate checkpoint/mesh/MB_train_h36m/best_epoch.bin
 ```
+
+### Refiner
+
+1. Prepare the predictions of an image-based estimator. We provide an example: [mesh_hybrik.zip](https://1drv.ms/u/s!AvAdh0LSjEOlgUlqm-WkmP_PtcTP?e=GZcIHU) (please unzip the `.pkl` files to `data/mesh/`).
+2. Use the pretrained motion representations to regress the residual in joint rotations:
+
+  ```bash
+  python train_mesh_refine.py \
+  --config configs/mesh/MB_ft_pw3d_refine_hybrik.yaml \
+  --pretrained checkpoint/pretrain/MB_release \
+  --checkpoint checkpoint/mesh/FT_MB_release_MB_ft_pw3d_refine_hybrik
+  ```
+
+3. Evaluate with (download our checkpoint for HybrIK [here](https://1drv.ms/f/s!AvAdh0LSjEOlgUwk4DI_JvPYgt75?e=upm9fG)):
+
+  ```bash
+  python train_mesh_refine.py \
+  --config configs/mesh/MB_ft_pw3d_refine_hybrik.yaml \
+  --evaluate checkpoint/mesh/FT_MB_release_MB_ft_pw3d_refine_hybrik/best_epoch.bin
+  ```
 
 
 
