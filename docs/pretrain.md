@@ -11,18 +11,40 @@
    - [tools/convert_amass.py](../tools/convert_amass.py): slice them to motion clips
 
 
+
 ### Human 3.6M
 
 Please refer to [pose3d.md](pose3d.md#data).
+
+
+
+### PoseTrack
+
+Please download PoseTrack18 from [MMPose](https://mmpose.readthedocs.io/en/latest/tasks/2d_body_keypoint.html#posetrack18) and unzip to `data/motion2d`.
+
+
 
 ### InstaVariety
 
 1. Please download data from [human_dynamics](https://github.com/akanazawa/human_dynamics/blob/master/doc/insta_variety.md#generating-tfrecords) to `data/motion2d`.
 1. Use [tools/convert_insta.py](../tools/convert_insta.py) to preprocess the 2D keypoints (need to specify `name_action` ).
+1. Load all the processed  `.pkl` files from step 2, concatenate them to `motion_list`, then run
 
-### PoseTrack
+```python
+import numpy as np
+ids = []
+for i, x in enumerate(motion_list):
+    ids.append(np.ones(len(x))*i)
+motion_all = np.concatenate(motion_list)
+id_all = np.concatenate(ids)
+np.save('data/motion2d/InstaVariety/motion_all.npy', motion_all)
+np.save('data/motion2d/InstaVariety/id_all.npy', id_all)
 
-Please download PoseTrack18 from [MMPose](https://mmpose.readthedocs.io/en/latest/tasks/2d_body_keypoint.html#posetrack18) and unzip to `data/motion2d`.
+```
+
+You can also download the preprocessed 2D keypoints from [here](https://1drv.ms/u/s!AvAdh0LSjEOlgVElzkVkWoFcJ1MR?e=TU2CeI) and unzip it to `data/motion2d/`.
+
+
 
 
 
