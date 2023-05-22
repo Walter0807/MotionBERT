@@ -20,7 +20,7 @@ Please refer to [pose3d.md](pose3d.md#data).
 
 ### PoseTrack
 
-Please download PoseTrack18 from [MMPose](https://mmpose.readthedocs.io/en/latest/tasks/2d_body_keypoint.html#posetrack18) and unzip to `data/motion2d`.
+Please download PoseTrack18 from [MMPose](https://mmpose.readthedocs.io/en/latest/dataset_zoo/2d_body_keypoint.html#posetrack18) (annotation files) and unzip to `data/motion2d`.
 
 
 
