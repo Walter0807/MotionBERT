@@ -6,7 +6,7 @@
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/motionbert-unified-pretraining-for-human/one-shot-3d-action-recognition-on-ntu-rgbd)](https://paperswithcode.com/sota/one-shot-3d-action-recognition-on-ntu-rgbd?p=motionbert-unified-pretraining-for-human)
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/motionbert-unified-pretraining-for-human/3d-human-pose-estimation-on-3dpw)](https://paperswithcode.com/sota/3d-human-pose-estimation-on-3dpw?p=motionbert-unified-pretraining-for-human)
 
-This is the official PyTorch implementation of the paper *"[Learning Human Motion Representations: A Unified Perspective](https://arxiv.org/pdf/2210.06551.pdf)"*.
+This is the official PyTorch implementation of the paper *"[Learning Human Motion Representations: A Unified Perspective](https://arxiv.org/pdf/2210.06551.pdf)"* (ICCV 2023).
 
 <img src="https://motionbert.github.io/assets/teaser.gif" alt="" style="zoom: 60%;" />
 
@@ -100,11 +100,11 @@ In most use cases (especially with finetuning), `MotionBERT-Lite` gives a simila
 If you find our work useful for your project, please consider citing the paper:
 
 ```bibtex
-@article{motionbert2022,
-  title   =   {Learning Human Motion Representations: A Unified Perspective}, 
-  author  =   {Zhu, Wentao and Ma, Xiaoxuan and Liu, Zhaoyang and Liu, Libin and Wu, Wayne and Wang, Yizhou},
-  year    =   {2022},
-  journal =   {arXiv preprint arXiv:2210.06551},
+@inproceedings{motionbert2022,
+  title     =   {Learning Human Motion Representations: A Unified Perspective}, 
+  author    =   {Zhu, Wentao and Ma, Xiaoxuan and Liu, Zhaoyang and Liu, Libin and Wu, Wayne and Wang, Yizhou},
+  booktitle =   {Proceedings of the IEEE/CVF International Conference on Computer Vision},
+  year      =   {2023},
 }
 ```
 
