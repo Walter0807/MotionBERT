@@ -1,4 +1,4 @@
-# MotionBERT
+# MotionBERT: A Unified Perspective on Learning Human Motion Representations
 
 <a href="https://pytorch.org/get-started/locally/"><img alt="PyTorch" src="https://img.shields.io/badge/PyTorch-ee4c2c?logo=pytorch&logoColor=white"></a> [![arXiv](https://img.shields.io/badge/arXiv-2210.06551-b31b1b.svg)](https://arxiv.org/abs/2210.06551) <a href="https://motionbert.github.io/"><img alt="Project" src="https://img.shields.io/badge/-Project%20Page-lightgrey?logo=Google%20Chrome&color=informational&logoColor=white"></a> <a href="https://youtu.be/slSPQ9hNLjM"><img alt="Demo" src="https://img.shields.io/badge/-Demo-ea3323?logo=youtube"></a> [![Hugging Face Models](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Models-ffab41)](https://huggingface.co/walterzhu/MotionBERT)
 
@@ -6,7 +6,7 @@
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/motionbert-unified-pretraining-for-human/one-shot-3d-action-recognition-on-ntu-rgbd)](https://paperswithcode.com/sota/one-shot-3d-action-recognition-on-ntu-rgbd?p=motionbert-unified-pretraining-for-human)
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/motionbert-unified-pretraining-for-human/3d-human-pose-estimation-on-3dpw)](https://paperswithcode.com/sota/3d-human-pose-estimation-on-3dpw?p=motionbert-unified-pretraining-for-human)
 
-This is the official PyTorch implementation of the paper *"[Learning Human Motion Representations: A Unified Perspective](https://arxiv.org/pdf/2210.06551.pdf)"* (ICCV 2023).
+This is the official PyTorch implementation of the paper *"[MotionBERT: A Unified Perspective on Learning Human Motion Representations](https://arxiv.org/pdf/2210.06551.pdf)"* (ICCV 2023).
 
 <img src="https://motionbert.github.io/assets/teaser.gif" alt="" style="zoom: 60%;" />
 
@@ -101,7 +101,7 @@ If you find our work useful for your project, please consider citing the paper:
 
 ```bibtex
 @inproceedings{motionbert2022,
-  title     =   {Learning Human Motion Representations: A Unified Perspective}, 
+  title     =   {MotionBERT: A Unified Perspective on Learning Human Motion Representations}, 
   author    =   {Zhu, Wentao and Ma, Xiaoxuan and Liu, Zhaoyang and Liu, Libin and Wu, Wayne and Wang, Yizhou},
   booktitle =   {Proceedings of the IEEE/CVF International Conference on Computer Vision},
   year      =   {2023},
