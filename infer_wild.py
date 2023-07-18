@@ -26,7 +26,8 @@ def parse_args():
     return opts
 
 if __name__ == '__main__':
-    torch.multiprocessing.freeze_support()  # due to RuntimeError: freeze_support() on Windows: https://github.com/pytorch/pytorch/issues/5858
+    # due to RuntimeError: freeze_support() on Windows: https://github.com/pytorch/pytorch/issues/5858
+    torch.multiprocessing.freeze_support()
 
     opts = parse_args()
     args = get_config(opts.config)
@@ -47,7 +48,7 @@ if __name__ == '__main__':
         name = k[7:] # remove `module.`
         new_state_dict[name] = v
 
-    model_backbone.load_state_dict(checkpoint['model_pos'], strict=True)
+    model_backbone.load_state_dict(new_state_dict, strict=True)
     model_pos = model_backbone
     model_pos.eval()
     testloader_params = {
