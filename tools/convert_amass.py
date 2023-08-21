@@ -33,7 +33,7 @@ for i, item in enumerate(joints_all): # (17,N,3):
     joints_cam.append(motion_cam)
 
 joints_cam_all = np.vstack(joints_cam)
-split_id = datareader.split_clips(vid_list, n_frames=243, data_stride=81)
+split_id = split_clips(vid_list, n_frames=243, data_stride=81)
 print(joints_cam_all.shape)   # (N,17,3)
 
 max_x, minx_x = np.max(joints_cam_all[:,:,0]), np.min(joints_cam_all[:,:,0])
