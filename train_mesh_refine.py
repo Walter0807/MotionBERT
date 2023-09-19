@@ -202,7 +202,7 @@ def train_epoch(args, opts, model, train_loader, losses_train, losses_dict, mpjp
         mpjpe, mpve = compute_error(output, batch_gt)
         mpjpes.update(mpjpe, batch_size)
         mpves.update(mpve, batch_size)
-        
+
         loss_train.backward()
         optimizer.step()
 
@@ -344,7 +344,6 @@ def train_with_config(args, opts):
             lr = checkpoint['lr']
             if 'best_jpe' in checkpoint and checkpoint['best_jpe'] is not None:
                 best_jpe = checkpoint['best_jpe']
-        
         # Training
         for epoch in range(st, args.epochs):
             print('Training epoch %d.' % epoch)
@@ -375,7 +374,10 @@ def train_with_config(args, opts):
                 train_writer.add_scalar('test_mpjpe', test_mpjpe, epoch + 1)
                 train_writer.add_scalar('test_pa_mpjpe', test_pa_mpjpe, epoch + 1)
                 train_writer.add_scalar('test_mpve', test_mpve, epoch + 1)
-            
+            	
+            if (hasattr(args, "dt_file_coco") or hasattr(args, "dt_file_coco_cliff")) and epoch < args.warmup_coco:	
+                train_epoch(args, opts, model, train_loader_coco, losses_train, losses_dict, mpjpes, mpves, criterion, optimizer, batch_time, data_time, epoch)
+                
             if hasattr(args, "dt_file_pw3d"):
                 if args.train_pw3d:
                     train_epoch(args, opts, model, train_loader_pw3d, losses_train, losses_dict, mpjpes, mpves, criterion, optimizer, batch_time, data_time, epoch)    

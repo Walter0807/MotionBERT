@@ -44,7 +44,6 @@ class SMPLRegressor(nn.Module):
         
         feat_pose = feat_pose.reshape(N, T, -1).permute(0, 2, 1)     # (NT, C) -> (N, C, T)
         feat_pose = torch.cat((feat_pose, feat_pred), 1)
-        feat_pose = self.dropout(feat_pose)
         pred_pose = self.head_pose(feat_pose) + init_pose            # (N, C, T)
         
         pred_pose = pred_pose.permute(0, 2, 1).reshape(NT, -1)
