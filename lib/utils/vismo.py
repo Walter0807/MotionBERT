@@ -281,6 +281,7 @@ def motion2video_3d(motion, save_path, fps=25, keep_imgs = False):
             
         frame_vis = get_img_from_fig(fig)
         videowriter.append_data(frame_vis)
+        plt.close()
     videowriter.close()
 
 def motion2video_mesh(motion, save_path, fps=25, keep_imgs = False, draw_face=True):
@@ -333,6 +334,7 @@ def motion2video_mesh(motion, save_path, fps=25, keep_imgs = False, draw_face=Tr
         frame_vis = get_img_from_fig(fig, dpi=128)
         plt.cla()
         videowriter.append_data(frame_vis)
+        plt.close()
     videowriter.close()
 
 def save_image(image_numpy, image_path):
