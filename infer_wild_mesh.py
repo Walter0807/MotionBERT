@@ -27,8 +27,8 @@ from scipy.optimize import least_squares
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="MotionBERT/configs/mesh/MB_ft_pw3d.yaml", help="Path to the config file.")
-    parser.add_argument('-e', '--evaluate', default='MotionBERT/checkpoint/mesh/FT_MB_release_MB_ft_pw3d/best_epoch.bin', type=str, metavar='FILENAME', help='checkpoint to evaluate (file name)')
+    parser.add_argument("--config", type=str, default="configs/mesh/MB_ft_pw3d.yaml", help="Path to the config file.")
+    parser.add_argument('-e', '--evaluate', default='checkpoint/mesh/FT_MB_release_MB_ft_pw3d/best_epoch.bin', type=str, metavar='FILENAME', help='checkpoint to evaluate (file name)')
     parser.add_argument('-j', '--json_path', type=str, help='alphapose detection result json path')
     parser.add_argument('-v', '--vid_path', type=str, help='video path')
     parser.add_argument('-o', '--out_path', type=str, help='output path')

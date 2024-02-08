@@ -14,7 +14,34 @@ from mpl_toolkits.mplot3d import Axes3D
 from lib.utils.utils_smpl import *
 import ipdb
 
+def calculate_angle(A, B, C):
+    # Vektoren AB und BC erstellen
+    AB = B - A
+    BC = C - B
+
+    # Skalarprodukt und Normen berechnen
+    dot_product = np.dot(AB, BC)
+    norm_AB = np.linalg.norm(AB)
+    norm_BC = np.linalg.norm(BC)
+
+    # Winkel in Radiant berechnen
+    angle = np.arccos(dot_product / (norm_AB * norm_BC))
+    # Winkel in Grad umwandeln
+    angle_deg = np.degrees(angle)
+    print("calcul",angle_deg)
+    
+    return 180-angle_deg
+
+def process_joints(joints):
+    hip = joints[4]
+    knee = joints[5]
+    foot = joints[6]
+    
+    return calculate_angle(hip, knee, foot)
+    
+
 def render_and_save(motion_input, save_path, keep_imgs=False, fps=25, color="#F96706#FB8D43#FDB381", with_conf=False, draw_face=False):
+    print(">>>>>>> RENDER and SAVE")
     ensure_dir(os.path.dirname(save_path))
     motion = copy.deepcopy(motion_input)
     if motion.shape[-1]==2 or motion.shape[-1]==3:
@@ -88,6 +115,7 @@ def hex2rgb(hex, number_of_colors=3):
 
 def joints2image(joints_position, colors, transparency=False, H=1000, W=1000, nr_joints=49, imtype=np.uint8, grayscale=False, bg_color=(255, 255, 255)):
 #     joints_position: [17*2]
+    print(">>> joints2image wird aufgerufen")
     nr_joints = joints_position.shape[0]
 
     if nr_joints == 49: # full joints(49): basic(15) + eyes(2) + toes(2) + hands(30)
@@ -160,6 +188,20 @@ def joints2image(joints_position, colors, transparency=False, H=1000, W=1000, nr
     end_effectors_radius = int(torso_length/15)
     end_effectors_radius = 7
     joints_radius = 7
+    #######
+    # FIXME: delete after testing or implement
+    
+    r_knee_angle = process_joints(joints_position)
+    
+    print("knee",r_knee_angle)
+    
+    cv2.putText(canvas, f"Knee: {r_knee_angle:.2f}Grad",
+            (int(joints_position[5][0]),int(joints_position[5][1])),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5, (0, 255, 0), 2)
+    
+    ########
+    
     for i in range(0, len(colors_joints)):
         if i in (17, 18):
             continue
@@ -172,7 +214,7 @@ def joints2image(joints_position, colors, transparency=False, H=1000, W=1000, nr
             if weight==0:
                 continue
         cv2.circle(canvas, (int(joints_position[i][0]),int(joints_position[i][1])), radius, colors_joints[i], thickness=-1)
-        
+
     stickwidth = 2
     for i in range(len(limbSeq)):
         limb = limbSeq[i]
@@ -195,11 +237,17 @@ def joints2image(joints_position, colors, transparency=False, H=1000, W=1000, nr
         alpha = math.degrees(math.atan2(X[0] - X[1], Y[0] - Y[1]))
         polygon = cv2.ellipse2Poly((int(mY), int(mX)), (int(length / 2), stickwidth), int(alpha), 0, 360, 1)
         cv2.fillConvexPoly(cur_canvas, polygon, colors_limbs[i])
+        
+        # FIXME: delete
+        cv2.putText(canvas, f"Test", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 20, (0, 255, 0), 2)
+        
         canvas = cv2.addWeighted(canvas, 0.4, cur_canvas, 0.6, 0)
         bb = bounding_box(canvas)
         canvas_cropped = canvas[:,bb[2]:bb[3], :]
     canvas = canvas.astype(imtype)
     canvas_cropped = canvas_cropped.astype(imtype)
+    # FIXME: delete
+    cv2.putText(canvas_cropped, f"Test", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 20, (0, 255, 0), 2)
     if grayscale:
         if transparency:
             canvas = cv2.cvtColor(canvas, cv2.COLOR_RGBA2GRAY)
@@ -245,6 +293,7 @@ def motion2video(motion, save_path, colors, h=512, w=512, bg_color=(255, 255, 25
 
 def motion2video_3d(motion, save_path, fps=25, keep_imgs = False):
 #     motion: (17,3,N)
+    print(">>>>>>>>> Motion To Vid")
     videowriter = imageio.get_writer(save_path, fps=fps)
     vlen = motion.shape[-1]
     save_name = save_path.split('.')[0]
@@ -280,6 +329,38 @@ def motion2video_3d(motion, save_path, fps=25, keep_imgs = False):
                 ax.plot(-xs, -zs, -ys, color=color_mid, lw=3, marker='o', markerfacecolor='w', markersize=3, markeredgewidth=2) # axis transformation for visualization
             
         frame_vis = get_img_from_fig(fig)
+######################
+        #Delete me pls
+        
+        rhip = j3d[1, :]
+        rkne = j3d[2, :]
+        rank = j3d[3, :]
+        lhip = j3d[4, :]
+        lkne = j3d[5, :]
+        lank = j3d[6, :]
+        
+        
+        
+        r_knee_angle = calculate_angle(rhip, rkne, rank)
+        l_knee_angle = calculate_angle(lhip, lkne, lank)
+        
+        r_knee_x, r_knee_y = int(j3d[2, 0]), int(j3d[2, 1])
+        r_text_position = (r_knee_x, r_knee_y)
+        
+        l_knee_x, l_knee_y = int(j3d[5, 0]), int(j3d[5, 1])
+        l_text_position = (r_knee_x, r_knee_y + 50)
+        
+        
+        cv2.putText(frame_vis, f"Knee Right: {r_knee_angle:.2f} Degree",
+        r_text_position,
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.5, (0, 0, 0), 1)
+        cv2.putText(frame_vis, f"Knee Left: {l_knee_angle:.2f} Degree",
+        l_text_position,
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.5, (0, 0, 0), 1)
+######################
+
         videowriter.append_data(frame_vis)
         plt.close()
     videowriter.close()
