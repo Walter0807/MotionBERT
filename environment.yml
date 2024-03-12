@@ -1,0 +1,25 @@
+name: motionbert
+channels:
+  - defaults
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - pytorch=*=*cuda11.8*
+  - torchvision=*=*cu118*
+  - torchaudio=*=*cu118*
+  - tensorboardx
+  - tqdm
+  - easydict
+  - prettytable
+  - py-opencv
+  - imageio-ffmpeg
+  - matplotlib
+  - ipdb
+  - pytorch-metric-learning                         # For one-shot action recognition
+  - ocl-icd-system
+  - pip
+  - pip:
+    - smplx[all]                                      # For mesh recovery
+    - chumpy
+    - roma
