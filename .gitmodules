@@ -1,0 +1,3 @@
+[submodule "submodule/mmpose"]
+	path = submodule/mmpose
+	url = https://github.com/open-mmlab/mmpose.git

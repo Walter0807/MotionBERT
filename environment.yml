@@ -5,21 +5,41 @@ channels:
   - nvidia
   - conda-forge
 dependencies:
+  - python=3.10
   - pytorch=*=*cuda11.8*
   - torchvision=*=*cu118*
   - torchaudio=*=*cu118*
-  - tensorboardx
-  - tqdm
+  - coverage
   - easydict
+  - flake8
+  - imageio-ffmpeg
+  - interrogate
+  - ipdb
+  - isort
+  - json_tricks
+  - matplotlib
+  - munkres
+  - ocl-icd-system
+  - parameterized
+  - pillow
+  - pip
   - prettytable
   - py-opencv
-  - imageio-ffmpeg
-  - matplotlib
-  - ipdb
+  - pytest
+  - pytest-runner
   - pytorch-metric-learning                         # For one-shot action recognition
-  - ocl-icd-system
-  - pip
+  - requests
+  - scipy
+  - tensorboard
+  - tensorboardx
+  - tqdm
+  - xdoctest
+  - yapf
   - pip:
     - smplx[all]                                      # For mesh recovery
     - chumpy
     - roma
+    - openmim
+    - torch-tb-profiler
+    - chumpy
+    - xtcocotools
