@@ -6,9 +6,11 @@ channels:
   - conda-forge
 dependencies:
   - python=3.10
-  - pytorch=*=*cuda11.8*
+  - pytorch=2.0.1=*cuda11.8*
   - torchvision=*=*cu118*
   - torchaudio=*=*cu118*
+  - cuda-toolkit=11.8
+  - cuda-nvcc=11.8
   - coverage
   - easydict
   - flake8
@@ -19,27 +21,31 @@ dependencies:
   - json_tricks
   - matplotlib
   - munkres
-  - ocl-icd-system
+  - opencv
   - parameterized
   - pillow
-  - pip
   - prettytable
-  - py-opencv
+  - protobuf=3.19.6
   - pytest
   - pytest-runner
-  - pytorch-metric-learning                         # For one-shot action recognition
+  - pytorch-metric-learning
   - requests
+  - requests=2.28.2
+  - rich=13.4.2
   - scipy
+  - setuptools=60.2.0
   - tensorboard
   - tensorboardx
   - tqdm
+  - urllib3=1.26.18
   - xdoctest
   - yapf
+  - pip
   - pip:
-    - smplx[all]                                      # For mesh recovery
     - chumpy
+    - opencv-python
     - roma
-    - openmim
+    - smplx[all]
     - torch-tb-profiler
-    - chumpy
     - xtcocotools
+    - -r mmlab_requirements.txt

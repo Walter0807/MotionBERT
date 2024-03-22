@@ -1,0 +1,7 @@
+--find-links https://download.openmmlab.com/mmcv/dist/cu118/torch2.0.0/index.html
+
+mmcv==2.1.0
+mmpose
+mmdet
+mmengine==0.10.3
+openmim

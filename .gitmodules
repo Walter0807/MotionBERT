@@ -1,3 +1,6 @@
 [submodule "submodule/mmpose"]
 	path = submodule/mmpose
 	url = https://github.com/open-mmlab/mmpose.git
+[submodule "submodule/AlphaPose"]
+	path = submodule/AlphaPose
+	url = https://github.com/MVIG-SJTU/AlphaPose.git
