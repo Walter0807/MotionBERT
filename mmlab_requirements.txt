@@ -1,4 +1,4 @@
---find-links https://download.openmmlab.com/mmcv/dist/cu118/torch2.0.0/index.html
+--find-links https://download.openmmlab.com/mmcv/dist/cpu/torch2.0.0/index.html
 
 mmcv==2.1.0
 mmpose
