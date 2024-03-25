@@ -43,7 +43,9 @@ dependencies:
   - pip
   - pip:
     - chumpy
+    - nvitop
     - opencv-python
+    - open3d
     - roma
     - smplx[all]
     - torch-tb-profiler
