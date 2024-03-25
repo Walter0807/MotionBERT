@@ -256,7 +256,10 @@ def main():
     if torch.cuda.is_available():
         model_backbone = nn.DataParallel(model_backbone)
         model_backbone = model_backbone.cuda()
-
+    elif torch.has_mps:
+        model_backbone = nn.DataParallel(model_backbone)
+        model_backbone = model_backbone.cpu()
+        
     checkpoint = torch.load(args.evaluate, map_location=lambda storage, loc: storage)
     model_backbone.load_state_dict(checkpoint["model_pos"], strict=True)
     pose3d_estimator = model_backbone
@@ -305,6 +308,8 @@ def main():
 
         if not success:
             break
+
+        frame = cv2.resize(frame, (640,360))
 
         # topdown pose estimation
         process_one_image(
