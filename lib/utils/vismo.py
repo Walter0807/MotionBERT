@@ -14,10 +14,33 @@ from mpl_toolkits.mplot3d import Axes3D
 from lib.utils.utils_smpl import *
 import ipdb
 
-def calculate_angle(A, B, C):
-    # Vektoren AB und BC erstellen
+max_angle_knee_right = 180
+max_angle_knee_left = 180
+
+def remove_coordinates(coordinate, *args):
+    #Coordinate
+    #X = 0
+    #Y = 1
+    #Z = 2
+    for x in args:
+        #Removes Z-Coordinate (3rd Element of Vector)
+        x[coordinate] = 0
+       # print(x)
+    return args
+
+def calculate_angle(A, B, C, max_angle_name, coordinate):
+    #Vektoren AB und BC erstellen
+    
+    #Entfernt X,Y,Z Koordinate
+    if coordinate in (0,1,2):
+        A,B,C = remove_coordinates(coordinate,A,B,C)
+
     AB = B - A
     BC = C - B
+   # print(f"A: {A}")
+   # print(f"B: {B}")
+  #  print(f"C: {C}")
+    #print(f"Typ von A: {type(A)}")
 
     # Skalarprodukt und Normen berechnen
     dot_product = np.dot(AB, BC)
@@ -28,16 +51,38 @@ def calculate_angle(A, B, C):
     angle = np.arccos(dot_product / (norm_AB * norm_BC))
     # Winkel in Grad umwandeln
     angle_deg = np.degrees(angle)
-    print("calcul",angle_deg)
+   # print("calcul",angle_deg)
     
+    result = 180-angle_deg
+    if abs(result-180) > abs(max_angle_name-180): 
+        max_angle_name = result
+
+    return result, max_angle_name
+
+def midpoint(p1, p2):
+    return np.array([(p1[0]+p2[0])/2, (p1[1]+p2[1])/2, 0]) #[[(p1[0]+p2[0])/2, (p1[1]+p2[1])/2, 0]] #
+
+
+def calc_hip_neck_yaxis_angle(hip_r_kp, hip_l_kp, neck_r_kp, neck_l_kp):
+    hip_r_kp[2] = 0
+    hip_l_kp[2] = 0
+    neck_r_kp[2] = 0
+    neck_l_kp[2] = 0
+    # Vektor von Hüfte zu Nacken
+    vector_a = midpoint(neck_r_kp, neck_l_kp) - midpoint(hip_r_kp, hip_l_kp)
+    # Y-Achse
+    y_axis = [0,1,0]
+    # Berechne Winkel zwischen Hüfte-Nacken und Y-Achse
+    angle_hip_neck_yaxis = np.arccos(np.dot(vector_a, y_axis) / (np.linalg.norm(vector_a) * np.linalg.norm(y_axis)))
+    angle_deg = np.degrees(angle_hip_neck_yaxis)
     return 180-angle_deg
 
 def process_joints(joints):
     hip = joints[4]
     knee = joints[5]
     foot = joints[6]
-    
-    return calculate_angle(hip, knee, foot)
+    coordinate = 2 #Berechnet VALUGUS Winkel durch 0-llen der Z-Koordinate
+    return calculate_angle(hip, knee, foot, max_angle_knee_right, coordinate)
     
 
 def render_and_save(motion_input, save_path, keep_imgs=False, fps=25, color="#F96706#FB8D43#FDB381", with_conf=False, draw_face=False):
@@ -305,6 +350,11 @@ def motion2video_3d(motion, save_path, fps=25, keep_imgs = False):
     color_mid = "#00457E"
     color_left = "#02315E"
     color_right = "#2F70AF"
+
+    max_angle_knee_right = 180
+    max_angle_knee_left = 180
+    max_angle_elb_right = 180
+
     for f in tqdm(range(vlen)):
         j3d = motion[:,:,f]
         fig = plt.figure(0, figsize=(10, 10))
@@ -330,35 +380,50 @@ def motion2video_3d(motion, save_path, fps=25, keep_imgs = False):
             
         frame_vis = get_img_from_fig(fig)
 ######################
-        #Delete me pls
-        
+        #Calculates the angle and writes angles to Video frames
+
         rhip = j3d[1, :]
         rkne = j3d[2, :]
         rank = j3d[3, :]
         lhip = j3d[4, :]
         lkne = j3d[5, :]
         lank = j3d[6, :]
+      
+        rwri = j3d[16, :]
+        relb = j3d[15, :]
+        rsho = j3d[14, :]
+
+        rhip = j3d[1, :]
+        lhip = j3d[4, :]
+        lsho = j3d[11, :]
         
-        
-        
-        r_knee_angle = calculate_angle(rhip, rkne, rank)
-        l_knee_angle = calculate_angle(lhip, lkne, lank)
+        coordinate = 2
+
+        r_knee_angle, max_angle_knee_right = calculate_angle(rhip, rkne, rank, max_angle_knee_right, coordinate)
+        l_knee_angle , max_angle_knee_left = calculate_angle(lhip, lkne, lank, max_angle_knee_left, coordinate)
+        r_elb_angle , max_angle_elb_right = calculate_angle(rsho, relb, rwri, max_angle_elb_right, 3)
+        hip_neck_angle = calc_hip_neck_yaxis_angle(rhip, lhip, rsho, lsho)
+        #print(f"ACHTUNG j3d: {j3d}")
         
         r_knee_x, r_knee_y = int(j3d[2, 0]), int(j3d[2, 1])
         r_text_position = (r_knee_x, r_knee_y)
+        r_text_max_position = (r_knee_x, r_knee_y + 100)
         
         l_knee_x, l_knee_y = int(j3d[5, 0]), int(j3d[5, 1])
         l_text_position = (r_knee_x, r_knee_y + 50)
+        l_text_max_position = (r_knee_x, r_knee_y + 150)
+        r_text_elb_position = (r_knee_x, r_knee_y + 200)
+        r_text_max_elb_position = (r_knee_x, r_knee_y + 250)
+        hip_neck_angle_position = (r_knee_x, r_knee_y + 300)
         
-        
-        cv2.putText(frame_vis, f"Knee Right: {r_knee_angle:.2f} Degree",
-        r_text_position,
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.5, (0, 0, 0), 1)
-        cv2.putText(frame_vis, f"Knee Left: {l_knee_angle:.2f} Degree",
-        l_text_position,
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.5, (0, 0, 0), 1)
+        cv2.putText(frame_vis, f"Knee Right: {r_knee_angle:.2f} Degree",r_text_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+        cv2.putText(frame_vis, f"Knee max Right: {max_angle_knee_right:.2f} Degree",r_text_max_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+        cv2.putText(frame_vis, f"Knee Left: {l_knee_angle:.2f} Degree",l_text_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+        cv2.putText(frame_vis, f"Knee max Left: {max_angle_knee_left:.2f} Degree",l_text_max_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+        cv2.putText(frame_vis, f"Elbow right: {r_elb_angle:.2f} Degree",r_text_elb_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+        cv2.putText(frame_vis, f"Elbow max right: {max_angle_elb_right:.2f} Degree",r_text_max_elb_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+        cv2.putText(frame_vis, f"Hip Neck y-Axis: {hip_neck_angle:.2f} Degree",hip_neck_angle_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+
 ######################
 
         videowriter.append_data(frame_vis)
