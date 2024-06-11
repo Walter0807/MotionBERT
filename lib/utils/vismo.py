@@ -14,8 +14,11 @@ from mpl_toolkits.mplot3d import Axes3D
 from lib.utils.utils_smpl import *
 import ipdb
 
-max_angle_knee_right = 180
-max_angle_knee_left = 180
+#max_angle_knee_right = 180
+#max_angle_knee_left = 180
+
+
+
 
 def remove_coordinates(coordinate, *args):
     #Coordinate
@@ -58,6 +61,18 @@ def calculate_angle(A, B, C, max_angle_name, coordinate):
         max_angle_name = result
 
     return result, max_angle_name
+
+# da Motionbert bei der Y-Achse von oben zu zählen beginnt (d.h. ganz oben ist Wert 0 und nach unten hin wird der Wert immer größer), müssen wir den maximalen y-Wert berechnen, um den tiefsten Punkt für die Bodenkontaktzeit ermitteln zu können
+def updateMaxYValue(maxYValue, newYValue):
+    if newYValue > maxYValue:
+        maxYValue = newYValue
+    return maxYValue
+
+def updateMinYValue(minYValue, newYValue):
+    if newYValue < minYValue:
+        minYValue = newYValue
+    return minYValue
+ 
 
 def midpoint(p1, p2):
     return np.array([(p1[0]+p2[0])/2, (p1[1]+p2[1])/2, 0]) #[[(p1[0]+p2[0])/2, (p1[1]+p2[1])/2, 0]] #
@@ -106,7 +121,8 @@ def render_and_save(motion_input, save_path, keep_imgs=False, fps=25, color="#F9
         motion2video_mesh(motion, save_path=save_path, keep_imgs=keep_imgs, fps=fps, draw_face=draw_face)
     else:
         motion_world = pixel2world_vis_motion(motion, dim=3)
-        motion2video_3d(motion_world, save_path=save_path, keep_imgs=keep_imgs, fps=fps)
+
+        motion2video_3d(motion_world, save_path=save_path, keep_imgs=keep_imgs, fps=fps, counter = 0, counter_dez = 0, counter_boden = 0)
         
 def pixel2world_vis(pose):
 #     pose: (17,2)
@@ -336,7 +352,7 @@ def motion2video(motion, save_path, colors, h=512, w=512, bg_color=(255, 255, 25
 
     return out_array
 
-def motion2video_3d(motion, save_path, fps=25, keep_imgs = False):
+def motion2video_3d(motion, save_path, fps=25, keep_imgs = False, counter = 0, counter_dez=0, counter_boden = 0):
 #     motion: (17,3,N)
     print(">>>>>>>>> Motion To Vid")
     videowriter = imageio.get_writer(save_path, fps=fps)
@@ -355,7 +371,17 @@ def motion2video_3d(motion, save_path, fps=25, keep_imgs = False):
     max_angle_knee_left = 180
     max_angle_elb_right = 180
 
-    for f in tqdm(range(vlen)):
+    maxYValueFootRight = 0
+    maxYValueFootLeft = 0
+    minYValueHead = 100000 
+
+    bodenkontaktzeit_right = 0
+    bodenkontaktzeit_left = 0
+    flag_l = True
+    flag_r = True
+
+    for idx, f in enumerate(tqdm(range(vlen))):
+    #for f in tqdm(range(vlen)):
         j3d = motion[:,:,f]
         fig = plt.figure(0, figsize=(10, 10))
         ax = plt.axes(projection="3d")
@@ -396,6 +422,8 @@ def motion2video_3d(motion, save_path, fps=25, keep_imgs = False):
         rhip = j3d[1, :]
         lhip = j3d[4, :]
         lsho = j3d[11, :]
+
+
         
         coordinate = 2
 
@@ -415,14 +443,135 @@ def motion2video_3d(motion, save_path, fps=25, keep_imgs = False):
         r_text_elb_position = (r_knee_x, r_knee_y + 200)
         r_text_max_elb_position = (r_knee_x, r_knee_y + 250)
         hip_neck_angle_position = (r_knee_x, r_knee_y + 300)
+
+        reaktiv_index_right_foot = (r_knee_x, r_knee_y + 350)
+        reaktiv_index_left_foot = (r_knee_x, r_knee_y + 400)
+         
         
+
+        if (max_angle_knee_right  < 170):
+          # färbe rot wenn Valgus/Varus Winkel zu groß
+          cv2.putText(frame_vis, f"Knee max Right: {max_angle_knee_right:.2f} Degree",r_text_max_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (255, 0, 0), 1) 
+        else:
+           cv2.putText(frame_vis, f"Knee max Right: {max_angle_knee_right:.2f} Degree",r_text_max_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)  
+
         cv2.putText(frame_vis, f"Knee Right: {r_knee_angle:.2f} Degree",r_text_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
-        cv2.putText(frame_vis, f"Knee max Right: {max_angle_knee_right:.2f} Degree",r_text_max_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+       #cv2.putText(frame_vis, f"Knee max Right: {max_angle_knee_right:.2f} Degree",r_text_max_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
         cv2.putText(frame_vis, f"Knee Left: {l_knee_angle:.2f} Degree",l_text_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
         cv2.putText(frame_vis, f"Knee max Left: {max_angle_knee_left:.2f} Degree",l_text_max_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
         cv2.putText(frame_vis, f"Elbow right: {r_elb_angle:.2f} Degree",r_text_elb_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
         cv2.putText(frame_vis, f"Elbow max right: {max_angle_elb_right:.2f} Degree",r_text_max_elb_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
-        cv2.putText(frame_vis, f"Hip Neck y-Axis: {hip_neck_angle:.2f} Degree",hip_neck_angle_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+
+        if (hip_neck_angle > 5):
+            # färbe rot wenn Körperhaltung zu schief
+            cv2.putText(frame_vis, f"Hip Neck y-Axis: {hip_neck_angle:.2f} Degree",hip_neck_angle_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (255, 0, 0), 1)
+        else:
+            cv2.putText(frame_vis, f"Hip Neck y-Axis: {hip_neck_angle:.2f} Degree",hip_neck_angle_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+
+        
+
+        ## Save angles to file 
+        with open(r'./outputs/angle_output.txt', 'a') as f:
+             ## create counter for 
+            counter +=1 
+            counter_boden +=1
+            if counter >= 25:
+                counter = 0
+                # Alle 25 Frames eine Sekunde hochzählen, da Video 24 Frames/Sekunde hat
+                counter_dez +=1
+                f.write(f"#####################"+ '\n')
+                f.write(f"Sekunde {counter_dez}"+ '\n')
+
+            # Define the data to be written
+            # Use a for loop to write each line of data to the file
+
+            f.write(f"Knee Right: {r_knee_angle:.2f} Degree" + '\n')
+            f.write(f"Knee Left: {l_knee_angle:.2f} Degree" + '\n')
+            f.write(f"Elbow right: {r_elb_angle:.2f} Degree"+ '\n')
+
+        ## Bodenkontaktzeit messen 
+
+     #  root = j3d[0, :]
+     #  head_y = float(j3d[10, 1])
+     #  belly_y = float(j3d[7, 1])
+        r_ankle_y = float(j3d[3, 1])
+        l_ankle_y = float(j3d[6, 1])
+
+# Bodenkontaktzeit rechter Fuß
+        # maxYValueFootRight gibt den derzeit höchsten (eigentlich tiefsten) y-Wert des rechten Fußes an
+        # prüfe, ob der Wert im aktuellen Frame tiefer ist und aktualisiere den Wert
+        maxYValueFootRightNew = updateMaxYValue(maxYValueFootRight, r_ankle_y)
+        # Bodenkontaktzeit messen: 
+        # Wenn sich der größte (eigentlich tiefste) Wert nicht mehr ändert und die Differenz vom aktuellen y-Wert und 
+        # dem tiefsten y-Wert eine bestimmte Toleranz (hier 0,1) 
+        # nicht übersteigt, dann ist der Fuß gerade vermutlich am Boden
+        # zähle dann die Bodenkontaktzeit weiter
+        if(flag_r == True and counter_boden > 10):
+            if (maxYValueFootRightNew == maxYValueFootRight and (abs(maxYValueFootRight-r_ankle_y)<1) and (l_ankle_y < r_ankle_y)):
+                # counter_dez gibt an, in welcher Sekunde wir gerade sind
+                # Wir geben die Bodenkontaktzeit in Anzahl an Frames aus, da unsere Videos sehr kurz sind 
+                bodenkontaktzeit_right += 1
+            else:
+                # sobald die bodenkontaktzeit einmal hochgezählt wurde und im nächsten Frame nicht mehr, ist die Bodenkontaktzeit abgeschlossen
+                # damit am Ende des Videos, wenn person wieder steht, nicht hochgezählt wird
+                if (bodenkontaktzeit_right >0):
+                    flag_r = False 
+        # überschreibe den max y-Value 
+        maxYValueFootRight = maxYValueFootRightNew
+
+# Bodenkontaktzeit linker Fuß
+        maxYValueFootLeftNew = updateMaxYValue(maxYValueFootLeft, l_ankle_y)
+
+        if(flag_l == True and counter_boden > 10):
+            if (maxYValueFootLeftNew == maxYValueFootLeft and (abs(maxYValueFootLeft-l_ankle_y)<1) and (l_ankle_y > r_ankle_y)):
+                # counter_dez gibt an, in welcher Sekunde wir gerade sind
+                # Wir geben die Bodenkontaktzeit in Anzahl an Frames aus, da unsere Videos sehr kurz sind 
+                bodenkontaktzeit_left += 1
+            else:
+                if (bodenkontaktzeit_left >0):
+                    flag_l = False 
+        # überschreibe den max y-Value 
+        maxYValueFootLeft = maxYValueFootLeftNew
+
+# Sprunghöhe Teil 1: Messe den y-Wert des Kopfs im ersten Frame und speichere den Wert  
+        head_y = float(j3d[10, 1])
+        if( idx == 0):
+            # speichere den y-Wert des Kopfs im ersten Videoframe
+            head_first_y_val = head_y
+
+        # Aktualisiere den maximalen y-Wert vom Kopf
+        minYValueHead = updateMinYValue(minYValueHead, head_y)
+        # Diff. am Ende des Videos sollte positiv sein
+        #if (idx >= 1):
+        head_diff = head_first_y_val - minYValueHead 
+
+
+
+# Berechne Reaktivitätsindex = Sprunghöhe / Bodenkontaktzeit
+        # Reaktivitätsindex ist nur im letzten Frame aussagekräftig und nur der Reaktivitätsindex des Fußes, mit dem man gesprungen ist
+        if (bodenkontaktzeit_right != 0): 
+            reakt_idx_right = head_diff / (bodenkontaktzeit_right/25)
+            cv2.putText(frame_vis, f"Reaktivitätsindex rechts: {reakt_idx_right:.2f}", reaktiv_index_right_foot, cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+        if (bodenkontaktzeit_left != 0):
+            reakt_idx_left = head_diff / (bodenkontaktzeit_left/25)
+            cv2.putText(frame_vis, f"Reaktivitätsindex links: {reakt_idx_left:.2f}", reaktiv_index_left_foot, cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+
+       # print(f" ROOT Coordinates {root}")
+       # print(f" HEAD Y-VAL {head_y}")
+       # print(f" BELLY Y-VAL {belly_y}")
+     #   print(f" RIGHT ANKLE Maximum Y-VAL {maxYValueFootRight}")
+     #   print(f" RIGHT ANKLE Y-VAL NOW {r_ankle_y}")
+        print(f"Bodenkontaktzeit rechts in Anzahl Frames: {bodenkontaktzeit_right}")
+     #   print(f" LEFT ANKLE Maximum Y-VAL {maxYValueFootLeft}")
+     #   print(f" LEFT ANKLE Y-VAL NOW  {l_ankle_y}")
+        print(f"bodenkontaktzeit links in Anzahl Frames: {bodenkontaktzeit_left}")
+
+        # minimaler y-Wert vom Kopf 
+        print(f"Differenz von head y: {head_diff}")
+        print(f"First y val head: {head_first_y_val}")
+        print(f"Minimaler y val head: {minYValueHead}")
+        
+
 
 ######################
 
