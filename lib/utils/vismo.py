@@ -32,18 +32,14 @@ def remove_coordinates(coordinate, *args):
     return args
 
 def calculate_angle(A, B, C, max_angle_name, coordinate):
-    #Vektoren AB und BC erstellen
     
-    #Entfernt X,Y,Z Koordinate
+    # X,Y oder Z Koordinate entfernen, falls gewünscht
     if coordinate in (0,1,2):
         A,B,C = remove_coordinates(coordinate,A,B,C)
 
+    #Vektoren AB und BC erstellen
     AB = B - A
     BC = C - B
-   # print(f"A: {A}")
-   # print(f"B: {B}")
-  #  print(f"C: {C}")
-    #print(f"Typ von A: {type(A)}")
 
     # Skalarprodukt und Normen berechnen
     dot_product = np.dot(AB, BC)
@@ -54,9 +50,11 @@ def calculate_angle(A, B, C, max_angle_name, coordinate):
     angle = np.arccos(dot_product / (norm_AB * norm_BC))
     # Winkel in Grad umwandeln
     angle_deg = np.degrees(angle)
-   # print("calcul",angle_deg)
-    
+
+    # Winkel von 180° abziehen, um eigentlichen Winkel zu erhalten
     result = 180-angle_deg
+
+    # Falls berechneter Winkel größer als bisheriger, maximaler Winkel, aktualisiere Winkel mit der maximalen Abweichung von 180 Grad
     if abs(result-180) > abs(max_angle_name-180): 
         max_angle_name = result
 
@@ -100,7 +98,7 @@ def process_joints(joints):
     return calculate_angle(hip, knee, foot, max_angle_knee_right, coordinate)
     
 
-def render_and_save(motion_input, save_path, keep_imgs=False, fps=25, color="#F96706#FB8D43#FDB381", with_conf=False, draw_face=False):
+def render_and_save(motion_input, save_path, video_basename, keep_imgs=False, fps=25, color="#F96706#FB8D43#FDB381", with_conf=False, draw_face=False):
     print(">>>>>>> RENDER and SAVE")
     ensure_dir(os.path.dirname(save_path))
     motion = copy.deepcopy(motion_input)
@@ -122,7 +120,7 @@ def render_and_save(motion_input, save_path, keep_imgs=False, fps=25, color="#F9
     else:
         motion_world = pixel2world_vis_motion(motion, dim=3)
 
-        motion2video_3d(motion_world, save_path=save_path, keep_imgs=keep_imgs, fps=fps, counter = 0, counter_dez = 0, counter_boden = 0)
+        motion2video_3d(motion_world, save_path=save_path, video_basename=video_basename, keep_imgs=keep_imgs, fps=fps, counter = 0, counter_dez = 0, counter_boden = 0)
         
 def pixel2world_vis(pose):
 #     pose: (17,2)
@@ -352,7 +350,7 @@ def motion2video(motion, save_path, colors, h=512, w=512, bg_color=(255, 255, 25
 
     return out_array
 
-def motion2video_3d(motion, save_path, fps=25, keep_imgs = False, counter = 0, counter_dez=0, counter_boden = 0):
+def motion2video_3d(motion, save_path, video_basename, fps=25, keep_imgs = False, counter = 0, counter_dez=0, counter_boden = 0):
 #     motion: (17,3,N)
     print(">>>>>>>>> Motion To Vid")
     videowriter = imageio.get_writer(save_path, fps=fps)
@@ -369,7 +367,10 @@ def motion2video_3d(motion, save_path, fps=25, keep_imgs = False, counter = 0, c
 
     max_angle_knee_right = 180
     max_angle_knee_left = 180
-    max_angle_elb_right = 180
+    #max_angle_elb_right = 180
+    max_hip_neck_angle = 0
+    reakt_idx_right = 0
+    reakt_idx_left = 0
 
     maxYValueFootRight = 0
     maxYValueFootLeft = 0
@@ -379,8 +380,12 @@ def motion2video_3d(motion, save_path, fps=25, keep_imgs = False, counter = 0, c
     bodenkontaktzeit_left = 0
     flag_l = True
     flag_r = True
+    
+    anzahl_frames = len(tqdm(range(vlen)))-1
 
     for idx, f in enumerate(tqdm(range(vlen))):
+        print("idx: " , idx)
+
     #for f in tqdm(range(vlen)):
         j3d = motion[:,:,f]
         fig = plt.figure(0, figsize=(10, 10))
@@ -405,8 +410,10 @@ def motion2video_3d(motion, save_path, fps=25, keep_imgs = False, counter = 0, c
                 ax.plot(-xs, -zs, -ys, color=color_mid, lw=3, marker='o', markerfacecolor='w', markersize=3, markeredgewidth=2) # axis transformation for visualization
             
         frame_vis = get_img_from_fig(fig)
+
+
 ######################
-        #Calculates the angle and writes angles to Video frames
+        #Calculates the angles and writes angles to Video frames
 
         rhip = j3d[1, :]
         rkne = j3d[2, :]
@@ -415,169 +422,270 @@ def motion2video_3d(motion, save_path, fps=25, keep_imgs = False, counter = 0, c
         lkne = j3d[5, :]
         lank = j3d[6, :]
       
-        rwri = j3d[16, :]
-        relb = j3d[15, :]
+        #rwri = j3d[16, :]
+        #relb = j3d[15, :]
         rsho = j3d[14, :]
 
         rhip = j3d[1, :]
         lhip = j3d[4, :]
         lsho = j3d[11, :]
 
-
-        
-        coordinate = 2
-
-        r_knee_angle, max_angle_knee_right = calculate_angle(rhip, rkne, rank, max_angle_knee_right, coordinate)
-        l_knee_angle , max_angle_knee_left = calculate_angle(lhip, lkne, lank, max_angle_knee_left, coordinate)
-        r_elb_angle , max_angle_elb_right = calculate_angle(rsho, relb, rwri, max_angle_elb_right, 3)
-        hip_neck_angle = calc_hip_neck_yaxis_angle(rhip, lhip, rsho, lsho)
-        #print(f"ACHTUNG j3d: {j3d}")
-        
-        r_knee_x, r_knee_y = int(j3d[2, 0]), int(j3d[2, 1])
-        r_text_position = (r_knee_x, r_knee_y)
-        r_text_max_position = (r_knee_x, r_knee_y + 100)
-        
-        l_knee_x, l_knee_y = int(j3d[5, 0]), int(j3d[5, 1])
-        l_text_position = (r_knee_x, r_knee_y + 50)
-        l_text_max_position = (r_knee_x, r_knee_y + 150)
-        r_text_elb_position = (r_knee_x, r_knee_y + 200)
-        r_text_max_elb_position = (r_knee_x, r_knee_y + 250)
-        hip_neck_angle_position = (r_knee_x, r_knee_y + 300)
-
-        reaktiv_index_right_foot = (r_knee_x, r_knee_y + 350)
-        reaktiv_index_left_foot = (r_knee_x, r_knee_y + 400)
-         
-        
-
-        if (max_angle_knee_right  < 170):
-          # färbe rot wenn Valgus/Varus Winkel zu groß
-          cv2.putText(frame_vis, f"Knee max Right: {max_angle_knee_right:.2f} Degree",r_text_max_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (255, 0, 0), 1) 
-        else:
-           cv2.putText(frame_vis, f"Knee max Right: {max_angle_knee_right:.2f} Degree",r_text_max_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)  
-
-        cv2.putText(frame_vis, f"Knee Right: {r_knee_angle:.2f} Degree",r_text_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
-       #cv2.putText(frame_vis, f"Knee max Right: {max_angle_knee_right:.2f} Degree",r_text_max_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
-        cv2.putText(frame_vis, f"Knee Left: {l_knee_angle:.2f} Degree",l_text_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
-        cv2.putText(frame_vis, f"Knee max Left: {max_angle_knee_left:.2f} Degree",l_text_max_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
-        cv2.putText(frame_vis, f"Elbow right: {r_elb_angle:.2f} Degree",r_text_elb_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
-        cv2.putText(frame_vis, f"Elbow max right: {max_angle_elb_right:.2f} Degree",r_text_max_elb_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
-
-        if (hip_neck_angle > 5):
-            # färbe rot wenn Körperhaltung zu schief
-            cv2.putText(frame_vis, f"Hip Neck y-Axis: {hip_neck_angle:.2f} Degree",hip_neck_angle_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (255, 0, 0), 1)
-        else:
-            cv2.putText(frame_vis, f"Hip Neck y-Axis: {hip_neck_angle:.2f} Degree",hip_neck_angle_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
-
-        
-
-        ## Save angles to file 
-        with open(r'./outputs/angle_output.txt', 'a') as f:
-             ## create counter for 
-            counter +=1 
-            counter_boden +=1
-            if counter >= 25:
-                counter = 0
-                # Alle 25 Frames eine Sekunde hochzählen, da Video 24 Frames/Sekunde hat
-                counter_dez +=1
-                f.write(f"#####################"+ '\n')
-                f.write(f"Sekunde {counter_dez}"+ '\n')
-
-            # Define the data to be written
-            # Use a for loop to write each line of data to the file
-
-            f.write(f"Knee Right: {r_knee_angle:.2f} Degree" + '\n')
-            f.write(f"Knee Left: {l_knee_angle:.2f} Degree" + '\n')
-            f.write(f"Elbow right: {r_elb_angle:.2f} Degree"+ '\n')
-
-        ## Bodenkontaktzeit messen 
-
-     #  root = j3d[0, :]
-     #  head_y = float(j3d[10, 1])
-     #  belly_y = float(j3d[7, 1])
+        # Keypoints der Fußknöchel im aktuellen Frame
         r_ankle_y = float(j3d[3, 1])
         l_ankle_y = float(j3d[6, 1])
 
-# Bodenkontaktzeit rechter Fuß
-        # maxYValueFootRight gibt den derzeit höchsten (eigentlich tiefsten) y-Wert des rechten Fußes an
-        # prüfe, ob der Wert im aktuellen Frame tiefer ist und aktualisiere den Wert
-        maxYValueFootRightNew = updateMaxYValue(maxYValueFootRight, r_ankle_y)
-        # Bodenkontaktzeit messen: 
-        # Wenn sich der größte (eigentlich tiefste) Wert nicht mehr ändert und die Differenz vom aktuellen y-Wert und 
-        # dem tiefsten y-Wert eine bestimmte Toleranz (hier 0,1) 
-        # nicht übersteigt, dann ist der Fuß gerade vermutlich am Boden
-        # zähle dann die Bodenkontaktzeit weiter
-        if(flag_r == True and counter_boden > 10):
-            if (maxYValueFootRightNew == maxYValueFootRight and (abs(maxYValueFootRight-r_ankle_y)<1) and (l_ankle_y < r_ankle_y)):
-                # counter_dez gibt an, in welcher Sekunde wir gerade sind
-                # Wir geben die Bodenkontaktzeit in Anzahl an Frames aus, da unsere Videos sehr kurz sind 
-                bodenkontaktzeit_right += 1
-            else:
-                # sobald die bodenkontaktzeit einmal hochgezählt wurde und im nächsten Frame nicht mehr, ist die Bodenkontaktzeit abgeschlossen
-                # damit am Ende des Videos, wenn person wieder steht, nicht hochgezählt wird
-                if (bodenkontaktzeit_right >0):
-                    flag_r = False 
-        # überschreibe den max y-Value 
-        maxYValueFootRight = maxYValueFootRightNew
+        r_knee_x, r_knee_y = int(j3d[2, 0]), int(j3d[2, 1])
+        #l_knee_x, l_knee_y = int(j3d[5, 0]), int(j3d[5, 1])
 
-# Bodenkontaktzeit linker Fuß
-        maxYValueFootLeftNew = updateMaxYValue(maxYValueFootLeft, l_ankle_y)
+        # bestimme, an welcher Position im Video/Bild die Ausgaben erscheinen
+        knee_textposition = (r_knee_x, r_knee_y)
+        knee_max_textposition = (r_knee_x, r_knee_y + 50)
+        #l_text_position = (r_knee_x, r_knee_y + 50)
+        #l_text_max_position = (r_knee_x, r_knee_y + 150)
+        #r_text_elb_position = (r_knee_x, r_knee_y + 200)
+        #r_text_max_elb_position = (r_knee_x, r_knee_y + 250)
+        hip_neck_angle_textposition = (r_knee_x, r_knee_y + 50)
+        sprunghöhe_textposition = (r_knee_x, r_knee_y + 100)
+        bodenkontaktzeit_textposition = (r_knee_x, r_knee_y + 150)
+        reaktiv_index_textposition = (r_knee_x, r_knee_y + 200)
+        
+        # bestimme die Koordinate, die genullt werden soll für Winkelberechnung
+        coordinate = 2
 
-        if(flag_l == True and counter_boden > 10):
-            if (maxYValueFootLeftNew == maxYValueFootLeft and (abs(maxYValueFootLeft-l_ankle_y)<1) and (l_ankle_y > r_ankle_y)):
-                # counter_dez gibt an, in welcher Sekunde wir gerade sind
-                # Wir geben die Bodenkontaktzeit in Anzahl an Frames aus, da unsere Videos sehr kurz sind 
-                bodenkontaktzeit_left += 1
-            else:
-                if (bodenkontaktzeit_left >0):
-                    flag_l = False 
-        # überschreibe den max y-Value 
-        maxYValueFootLeft = maxYValueFootLeftNew
+        # Berechne Ellenbogen Winkel
+        # r_elb_angle , max_angle_elb_right = calculate_angle(rsho, relb, rwri, max_angle_elb_right, 3)    
+        # cv2.putText(frame_vis, f"Elbow right: {r_elb_angle:.2f} Degree",r_text_elb_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+        # cv2.putText(frame_vis, f"Elbow max right: {max_angle_elb_right:.2f} Degree",r_text_max_elb_position,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
 
-# Sprunghöhe Teil 1: Messe den y-Wert des Kopfs im ersten Frame und speichere den Wert  
+
+################ seitliche Rumpfbewegung ###############
+
+        hip_neck_angle = calc_hip_neck_yaxis_angle(rhip, lhip, rsho, lsho)
+
+        # aktualisiere den Wert der größten seitlichen Rumpfbewegung
+        if (hip_neck_angle > max_hip_neck_angle):
+            max_hip_neck_angle = hip_neck_angle
+
+        if (hip_neck_angle > 5):
+            # färbe rot, wenn Körperhaltung zu schief
+            cv2.putText(frame_vis, f"Hip Neck y-Axis: {hip_neck_angle:.2f} Degree",hip_neck_angle_textposition,cv2.FONT_HERSHEY_SIMPLEX,0.5, (255, 0, 0), 1)
+        else:
+            cv2.putText(frame_vis, f"Hip Neck y-Axis: {hip_neck_angle:.2f} Degree",hip_neck_angle_textposition,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+        
+        
+############### Sprunghöhe ############################
+        # Da wir die Sprunghöhe nur als Vergleichswert zwischen Sprung mit rechtem und mit linkem Fuß benötigen, wird hier die max. Diff. des y-Werts des Kopfs als Sprunghöhe bezeichnet
+
+        # Sprunghöhe Teil 1: Messe den y-Wert des Kopfs im ersten Frame und speichere den Wert  
         head_y = float(j3d[10, 1])
         if( idx == 0):
             # speichere den y-Wert des Kopfs im ersten Videoframe
             head_first_y_val = head_y
 
-        # Aktualisiere den maximalen y-Wert vom Kopf
+        # Sprunghöhe Teil 2: Aktualisiere den maximalen y-Wert vom Kopf, falls er kleiner als zuvor ist
         minYValueHead = updateMinYValue(minYValueHead, head_y)
         # Diff. am Ende des Videos sollte positiv sein
-        #if (idx >= 1):
         head_diff = head_first_y_val - minYValueHead 
-
-
-
-# Berechne Reaktivitätsindex = Sprunghöhe / Bodenkontaktzeit
-        # Reaktivitätsindex ist nur im letzten Frame aussagekräftig und nur der Reaktivitätsindex des Fußes, mit dem man gesprungen ist
-        if (bodenkontaktzeit_right != 0): 
-            reakt_idx_right = head_diff / (bodenkontaktzeit_right/25)
-            cv2.putText(frame_vis, f"Reaktivitätsindex rechts: {reakt_idx_right:.2f}", reaktiv_index_right_foot, cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
-        if (bodenkontaktzeit_left != 0):
-            reakt_idx_left = head_diff / (bodenkontaktzeit_left/25)
-            cv2.putText(frame_vis, f"Reaktivitätsindex links: {reakt_idx_left:.2f}", reaktiv_index_left_foot, cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
-
-       # print(f" ROOT Coordinates {root}")
-       # print(f" HEAD Y-VAL {head_y}")
-       # print(f" BELLY Y-VAL {belly_y}")
-     #   print(f" RIGHT ANKLE Maximum Y-VAL {maxYValueFootRight}")
-     #   print(f" RIGHT ANKLE Y-VAL NOW {r_ankle_y}")
-        print(f"Bodenkontaktzeit rechts in Anzahl Frames: {bodenkontaktzeit_right}")
-     #   print(f" LEFT ANKLE Maximum Y-VAL {maxYValueFootLeft}")
-     #   print(f" LEFT ANKLE Y-VAL NOW  {l_ankle_y}")
-        print(f"bodenkontaktzeit links in Anzahl Frames: {bodenkontaktzeit_left}")
-
-        # minimaler y-Wert vom Kopf 
         print(f"Differenz von head y: {head_diff}")
         print(f"First y val head: {head_first_y_val}")
         print(f"Minimaler y val head: {minYValueHead}")
-        
 
+        cv2.putText(frame_vis, f"Sprunghoehe: {head_diff:.2f}", sprunghöhe_textposition, cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+
+############### Kennzahlen beim Sprung mit rechtem Fuß ############################
+
+        # separiere Videos, bei denen mit rechtem Bein gesprungen wird von denen, bei denen mit linkem Bein gesprungen wird, anhand des Videonamens
+        if "rechts" in video_basename:
+
+            # Berechne Valgus/Varus anhand des rechten Kniewinkels
+            r_knee_angle, max_angle_knee_right = calculate_angle(rhip, rkne, rank, max_angle_knee_right, coordinate)
+            # gib Winkel auf Video aus
+            if (r_knee_angle  < 170):
+                # färbe Ausgabe rot wenn Valgus/Varus Kniewinkel zu groß
+                cv2.putText(frame_vis, f"Right knee angle: {r_knee_angle:.2f} Degree",knee_textposition,cv2.FONT_HERSHEY_SIMPLEX,0.5, (255, 0, 0), 1)
+            else:
+                cv2.putText(frame_vis, f"Right knee angle: {r_knee_angle:.2f} Degree",knee_textposition,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+            
+            #if (max_angle_knee_right  < 170):
+                # färbe Ausgabe rot wenn Valgus/Varus Kniewinkel zu groß
+            #    cv2.putText(frame_vis, f"Right knee max angle: {max_angle_knee_right:.2f} Degree",knee_max_textposition,cv2.FONT_HERSHEY_SIMPLEX,0.5, (255, 0, 0), 1) 
+            #else:
+            #    cv2.putText(frame_vis, f"Right knee max angle: {max_angle_knee_right:.2f} Degree",knee_max_textposition,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)  
+
+            if( idx == 0):
+            # gib den y-Wert des rechten Fußes im ersten Frame aus 
+                print("Y Wert rechter Knöchel im 1. Frame: " , r_ankle_y)
+            
+            # Bodenkontaktzeit rechter Fuß
+            # maxYValueFootRight gibt den derzeit höchsten (eigentlich tiefsten) y-Wert des rechten Fußes an
+            # prüfe, ob der Wert im aktuellen Frame tiefer ist und aktualisiere den Wert
+            maxYValueFootRightNew = updateMaxYValue(maxYValueFootRight, r_ankle_y)
+            # Bodenkontaktzeit messen: 
+            # Wenn sich der größte (eigentlich tiefste) Wert nicht mehr ändert und die Differenz vom aktuellen y-Wert und 
+            # dem tiefsten y-Wert eine bestimmte Toleranz (hier 2) nicht übersteigt und 
+            # der y-Wert des linken Fußes tiefer ist als der des rechten Fußes (d.h. der linke Fuß ist noch in der Luft)
+            # dann ist der Fuß gerade vermutlich am Boden
+            # zähle dann die Bodenkontaktzeit weiter
+            if(flag_r == True): # and counter_boden > 10):
+                if (maxYValueFootRightNew == maxYValueFootRight and (abs(maxYValueFootRight-r_ankle_y)<2) and (l_ankle_y < r_ankle_y) and r_ankle_y>490):
+                    # counter_dez gibt an, in welcher Sekunde wir gerade sind
+                    # Wir berechnen die Bodenkontaktzeit in Anzahl an Frames, da unsere Videos sehr kurz sind 
+                    bodenkontaktzeit_right += 1
+                else:
+                    # sobald die bodenkontaktzeit einmal hochgezählt wurde und im nächsten Frame nicht mehr, ist die Bodenkontaktzeit abgeschlossen
+                    # damit am Ende des Videos, wenn person wieder steht, nicht hochgezählt wird
+                    if (bodenkontaktzeit_right >0):
+                        flag_r = False 
+            # überschreibe den max. y-value in jedem Frame, falls größer
+            maxYValueFootRight = maxYValueFootRightNew
+
+            print(f"Bodenkontaktzeit rechts in Anzahl Frames: {bodenkontaktzeit_right}")
+            print(f"Bodenkontaktzeit rechts in Sekunden: {bodenkontaktzeit_right/25}")
+
+            print("Bisher max. Y Wert rechter Knöchel: " , maxYValueFootRight)
+
+            # Berechne Reaktivitätsindex = Sprunghöhe / Bodenkontaktzeit
+            # Reaktivitätsindex ist nur im letzten Frame aussagekräftig, daher nur Ausgabe am Ende des Videos betrachten!
+            if (bodenkontaktzeit_right != 0): 
+                cv2.putText(frame_vis, f"Bodenkontaktzeit rechtes: {bodenkontaktzeit_right:.2f}", bodenkontaktzeit_textposition, cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+                reakt_idx_right = head_diff / (bodenkontaktzeit_right/25) # Angabe in Sekunden
+                cv2.putText(frame_vis, f"Reaktiv.-index rechts: {reakt_idx_right:.2f}", reaktiv_index_textposition, cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+            
+
+            ############# Speichere Winkel f. rechte Seite in Textdatei #################
+
+            # Datei mit Verlauf der Kennzahlen im Zeitverlauf
+            with open(r'./outputs/angle_output_verlauf_rechts.txt', 'a') as f:
+                ## increase counter for frames
+                counter +=1 
+                #counter_boden +=1
+                if counter >= 25:
+                    counter = 0
+                    # Alle 25 Frames eine Sekunde hochzählen, da Video 24 Frames/Sekunde hat
+                    counter_dez +=1
+                    f.write(f"#####################"+ '\n')
+                    f.write(f"Sekunde {counter_dez}"+ '\n')
+
+                # Define the data to be written
+                # Use a for loop to write each line of data to the file
+
+                f.write(f"Winkel rechtes Knie von Front: {r_knee_angle:.2f} Degree" + '\n')
+                f.write(f"Seitliche Rumpfbewegung / Hüfte Nacken y-Axe: {hip_neck_angle:.2f} Degree"+ '\n')
+                f.write(f"Bodenkontaktzeit rechter Fuß in Sekunden: {bodenkontaktzeit_right/25:.2f}"+ '\n')
+                f.write(f"Sprunghöhe: {head_diff}" + '\n')
+
+
+            # Speichere Endergebnisse im letzten Frame
+            if (idx == anzahl_frames): 
+                # erstelle eine Datei für die Endergebnisse der rechten Seite
+                filename_results_right = video_basename + '_results.txt'  # Create a unique filename
+                output_path_results_right = os.path.join('./outputs', filename_results_right)  # Path for the results file
+                print("output_path_results_right: " , output_path_results_right)
+
+                with open(output_path_results_right, 'w') as f:
+                    f.write(f"Winkel rechtes Knie mit max. Abweichung von 180 Grad von Front: {max_angle_knee_right} Grad" + '\n')
+                    f.write(f"Maximale seitliche Rumpfbewegung: {max_hip_neck_angle} Grad" + '\n')
+                    f.write(f"Sprunghöhe: {head_diff}" + '\n')
+                    f.write(f"Bodenkontaktzeit rechter Fuß in Sekunden: {bodenkontaktzeit_right/25:.2f}"+ '\n')
+                    if (reakt_idx_right != None):
+                        f.write(f"Reaktiv.-index rechts: {reakt_idx_right:.2f}" + '\n') 
+
+############### Kennzahlen beim Sprung mit linkem Fuß ############################
+
+        if "links" in video_basename:
+
+            # Berechne Valgus/Varus anhand des linken Kniewinkels
+            l_knee_angle , max_angle_knee_left = calculate_angle(lhip, lkne, lank, max_angle_knee_left, coordinate)
+
+            # gib Winkel auf Video aus
+            if (l_knee_angle  < 170):
+                # färbe Ausgabe rot wenn Valgus/Varus Kniewinkel zu groß
+                cv2.putText(frame_vis, f"Left knee angle: {l_knee_angle:.2f} Degree",knee_textposition,cv2.FONT_HERSHEY_SIMPLEX,0.5, (255, 0, 0), 1)
+            else:
+                cv2.putText(frame_vis, f"Left knee angle: {l_knee_angle:.2f} Degree",knee_textposition,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+
+            #if (max_angle_knee_left  < 170):
+                # färbe Ausgabe rot wenn Valgus/Varus Kniewinkel zu groß
+            #    cv2.putText(frame_vis, f"Left knee max angle: {max_angle_knee_left:.2f} Degree",knee_max_textposition,cv2.FONT_HERSHEY_SIMPLEX,0.5, (255, 0, 0), 1) 
+            #else:
+            #    cv2.putText(frame_vis, f"Left knee max angle: {max_angle_knee_left:.2f} Degree",knee_max_textposition,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)  
+
+            if( idx == 0):
+                # gib den y-Wert des rechten Fußes im ersten Frame aus 
+                print("Y Wert linker Knöchel im 1. Frame: " , l_ankle_y)
+
+            print("Berechnung Bodenkontaktzeit linker Fuß")
+            # Bodenkontaktzeit linker Fuß
+            maxYValueFootLeftNew = updateMaxYValue(maxYValueFootLeft, l_ankle_y)
+
+            # Bodenkontaktzeit darf nur gezählt werden, wenn der linke Fuß tiefer ist als der rechte Fuß (is beim Aufkommen am Boden immer der Fall)
+            # und der linke Fuß sich nicht mehr als 2 Pixel bewegt
+            if(flag_l == True): #and counter_boden > 10):
+                if (maxYValueFootLeftNew == maxYValueFootLeft and (abs(maxYValueFootLeft-l_ankle_y)<2) and (l_ankle_y > r_ankle_y) and l_ankle_y>490):
+                    # counter_dez gibt an, in welcher Sekunde wir gerade sind
+                    # Wir geben die Bodenkontaktzeit in Anzahl an Frames aus, da unsere Videos sehr kurz sind 
+                    bodenkontaktzeit_left += 1
+                else:
+                    if (bodenkontaktzeit_left >0):
+                        flag_l = False 
+            # überschreibe den max. y-value in jedem Frame, falls größer 
+            maxYValueFootLeft = maxYValueFootLeftNew
+
+            print(f"bodenkontaktzeit links in Anzahl Frames: {bodenkontaktzeit_left}")
+            print(f"bodenkontaktzeit links in Sekunden: {bodenkontaktzeit_left/25}")
+
+            print("Bisher max. Y Wert linker Knöchel: " , maxYValueFootLeft)
+
+            # Berechne Reaktivitätsindex = Sprunghöhe / Bodenkontaktzeit
+            # Reaktivitätsindex ist nur im letzten Frame aussagekräftig, daher nur Ausgabe am Ende des Videos betrachten!
+            if (bodenkontaktzeit_left != 0):
+                cv2.putText(frame_vis, f"Bodenkontaktzeit links: {bodenkontaktzeit_left:.2f}", bodenkontaktzeit_textposition, cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+                reakt_idx_left = head_diff / (bodenkontaktzeit_left/25)
+                cv2.putText(frame_vis, f"Reaktiv.-index links: {reakt_idx_left:.2f}", reaktiv_index_textposition, cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+        
+        
+            ############# Speichere Winkel für linke Seite in Textdatei #################
+
+            # Datei mit Verlauf der Kennzahlen im Zeitverlauf
+            with open(r'./outputs/angle_output_verlauf_links.txt', 'a') as f:
+                ## create counter for frames
+                counter +=1 
+                counter_boden +=1
+                if counter >= 25:
+                    counter = 0
+                    # Alle 25 Frames eine Sekunde hochzählen, da Video 24 Frames pro Sekunde hat
+                    counter_dez +=1
+                    f.write(f"#####################"+ '\n')
+                    f.write(f"Sekunde {counter_dez}"+ '\n')
+
+                # Speichere aktuelle Werte
+                f.write(f"Winkel linkes Knie von Front: {l_knee_angle:.2f} Grad" + '\n') 
+                f.write(f"Seitliche Rumpfbewegung / Hüfte Nacken y-Axe: {hip_neck_angle:.2f} Grad"+ '\n')
+                f.write(f"Bodenkontaktzeit linker Fuß in Sekunden: {bodenkontaktzeit_left/25:.2f}"+ '\n')
+                f.write(f"Sprunghöhe: {head_diff}" + '\n')
+
+            # Speichere Endergebnisse im letzten Frame
+            if (idx == anzahl_frames): 
+                # erstelle eine Datei für die Endergebnisse der linken Seite
+                filename_results_left = video_basename + '_results.txt'  # Create a unique filename
+                output_path_results_left = os.path.join('./outputs', filename_results_left)  # Path for the results file
+                print("output_path_results_left: " , output_path_results_left)
+
+                with open(output_path_results_left, 'w') as f:
+                    f.write(f"Winkel linkes Knie mit max. Abweichung von 180 Grad von Front: {max_angle_knee_left} Grad" + '\n')
+                    f.write(f"Maximale seitliche Rumpfbewegung: {max_hip_neck_angle} Grad" + '\n')
+                    f.write(f"Sprunghöhe: {head_diff}" + '\n')
+                    f.write(f"Bodenkontaktzeit linker Fuß in Sekunden: {bodenkontaktzeit_left/25:.2f}"+ '\n')
+                    if (reakt_idx_left != None):
+                        f.write(f"Reaktiv.-index links: {reakt_idx_left:.2f}" + '\n') 
 
 ######################
 
         videowriter.append_data(frame_vis)
         plt.close()
     videowriter.close()
+
+
 
 def motion2video_mesh(motion, save_path, fps=25, keep_imgs = False, draw_face=True):
     videowriter = imageio.get_writer(save_path, fps=fps)

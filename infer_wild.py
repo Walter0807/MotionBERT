@@ -31,6 +31,8 @@ args = get_config(opts.config)
 # Extract the base name of the input video file without the extension
 video_basename = os.path.splitext(os.path.basename(opts.vid_path))[0]
 
+print("video_basename: " , video_basename)
+
 model_backbone = load_backbone(args)
 if torch.cuda.is_available():
     model_backbone = nn.DataParallel(model_backbone)
@@ -97,7 +99,7 @@ results_all = np.concatenate(results_all)
 output_video_path = os.path.join(opts.out_path, f"{video_basename}.mp4")
 output_npy_path = os.path.join(opts.out_path, f"{video_basename}.npy")
 
-render_and_save(results_all, output_video_path, keep_imgs=False, fps=fps_in)
+render_and_save(results_all, save_path=output_video_path, video_basename=video_basename, keep_imgs=False, fps=fps_in)
 np.save(output_npy_path, results_all)
 
 if opts.pixel:
