@@ -371,6 +371,8 @@ def motion2video_3d(motion, save_path, video_basename, fps=25, keep_imgs = False
     max_hip_neck_angle = 0
     reakt_idx_right = 0
     reakt_idx_left = 0
+    r_foot_first_y_val = 0
+    l_foot_first_y_val = 0
 
     maxYValueFootRight = 0
     maxYValueFootLeft = 0
@@ -430,7 +432,7 @@ def motion2video_3d(motion, save_path, video_basename, fps=25, keep_imgs = False
         lhip = j3d[4, :]
         lsho = j3d[11, :]
 
-        # Keypoints der Fußknöchel im aktuellen Frame
+        # y-Wert der Keypoints der Fußknöchel im aktuellen Frame
         r_ankle_y = float(j3d[3, 1])
         l_ankle_y = float(j3d[6, 1])
 
@@ -484,18 +486,31 @@ def motion2video_3d(motion, save_path, video_basename, fps=25, keep_imgs = False
 
         # Sprunghöhe Teil 2: Aktualisiere den maximalen y-Wert vom Kopf, falls er kleiner als zuvor ist
         minYValueHead = updateMinYValue(minYValueHead, head_y)
-        # Diff. am Ende des Videos sollte positiv sein
+
+        # Diff. vom y-Wert des Kopfs im ersten Frame und des maximalen y-Wert vom Kopf; Wert sollte am Ende des Videos positiv sein
         head_diff = head_first_y_val - minYValueHead 
         print(f"Differenz von head y: {head_diff}")
         print(f"First y val head: {head_first_y_val}")
         print(f"Minimaler y val head: {minYValueHead}")
 
-        cv2.putText(frame_vis, f"Sprunghoehe: {head_diff:.2f}", sprunghöhe_textposition, cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+        # Addiere die Höhe der Treppenstufe
+        # Höhe der Treppenstufe ist Differenz aus
+        # Y-Wert des Fußes, mit dem gesprungen wird, im ersten Frame und
+        # maximalem Y-Wert des Fußes, mit dem gesprungen wird, im ganzen Video
+
+        # Speichere Y-Wert des Fußes, mit dem gesprungen wird, im ersten Frame
+        if("rechts" in video_basename and idx == 0):
+            r_foot_first_y_val = r_ankle_y
+        elif("links" in video_basename and idx == 0):
+            l_foot_first_y_val = l_ankle_y
+
+
+        cv2.putText(frame_vis, f"Sprunghoehe abzgl. H. d. Treppe: {head_diff:.2f}", sprunghöhe_textposition, cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
 
 ############### Kennzahlen beim Sprung mit rechtem Fuß ############################
 
         # separiere Videos, bei denen mit rechtem Bein gesprungen wird von denen, bei denen mit linkem Bein gesprungen wird, anhand des Videonamens
-        if "rechts" in video_basename:
+        if ("rechts" in video_basename):
 
             # Berechne Valgus/Varus anhand des rechten Kniewinkels
             r_knee_angle, max_angle_knee_right = calculate_angle(rhip, rkne, rank, max_angle_knee_right, coordinate)
@@ -544,14 +559,10 @@ def motion2video_3d(motion, save_path, video_basename, fps=25, keep_imgs = False
 
             print("Bisher max. Y Wert rechter Knöchel: " , maxYValueFootRight)
 
-            # Berechne Reaktivitätsindex = Sprunghöhe / Bodenkontaktzeit
-            # Reaktivitätsindex ist nur im letzten Frame aussagekräftig, daher nur Ausgabe am Ende des Videos betrachten!
+            # Gib die Bodenkontaktzeit auf Video aus
             if (bodenkontaktzeit_right != 0): 
                 cv2.putText(frame_vis, f"Bodenkontaktzeit rechtes: {bodenkontaktzeit_right:.2f}", bodenkontaktzeit_textposition, cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
-                reakt_idx_right = head_diff / (bodenkontaktzeit_right/25) # Angabe in Sekunden
-                cv2.putText(frame_vis, f"Reaktiv.-index rechts: {reakt_idx_right:.2f}", reaktiv_index_textposition, cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
-            
-
+                
             ############# Speichere Winkel f. rechte Seite in Textdatei #################
 
             # Datei mit Verlauf der Kennzahlen im Zeitverlauf
@@ -572,11 +583,22 @@ def motion2video_3d(motion, save_path, video_basename, fps=25, keep_imgs = False
                 f.write(f"Winkel rechtes Knie von Front: {r_knee_angle:.2f} Degree" + '\n')
                 f.write(f"Seitliche Rumpfbewegung / Hüfte Nacken y-Axe: {hip_neck_angle:.2f} Degree"+ '\n')
                 f.write(f"Bodenkontaktzeit rechter Fuß in Sekunden: {bodenkontaktzeit_right/25:.2f}"+ '\n')
-                f.write(f"Sprunghöhe: {head_diff}" + '\n')
+                f.write(f"Sprunghöhe (ohne Höhe der Treppe): {head_diff}" + '\n')
 
 
             # Speichere Endergebnisse im letzten Frame
             if (idx == anzahl_frames): 
+
+                # Berechne die Höhe der Treppenstufe und addiere diese zur Sprunghöhe
+                if (r_foot_first_y_val != 0 and maxYValueFootRight>r_foot_first_y_val):
+                    treppe = (maxYValueFootRight - r_foot_first_y_val)
+                    print('Höhe der Treppenstufe: ', treppe)
+                    head_diff = head_diff + treppe
+
+                # Berechne Reaktivitätsindex = Sprunghöhe / Bodenkontaktzeit
+                reakt_idx_right = head_diff / (bodenkontaktzeit_right/25) # Angabe in Sekunden (bei 25fps)
+                cv2.putText(frame_vis, f"Reaktiv.-index rechts: {reakt_idx_right:.2f}", reaktiv_index_textposition, cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+
                 # erstelle eine Datei für die Endergebnisse der rechten Seite
                 filename_results_right = video_basename + '_results.txt'  # Create a unique filename
                 output_path_results_right = os.path.join('./outputs', filename_results_right)  # Path for the results file
@@ -636,13 +658,10 @@ def motion2video_3d(motion, save_path, video_basename, fps=25, keep_imgs = False
 
             print("Bisher max. Y Wert linker Knöchel: " , maxYValueFootLeft)
 
-            # Berechne Reaktivitätsindex = Sprunghöhe / Bodenkontaktzeit
-            # Reaktivitätsindex ist nur im letzten Frame aussagekräftig, daher nur Ausgabe am Ende des Videos betrachten!
+            # Gib die Bodenkontaktzeit auf Video aus
             if (bodenkontaktzeit_left != 0):
                 cv2.putText(frame_vis, f"Bodenkontaktzeit links: {bodenkontaktzeit_left:.2f}", bodenkontaktzeit_textposition, cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
-                reakt_idx_left = head_diff / (bodenkontaktzeit_left/25)
-                cv2.putText(frame_vis, f"Reaktiv.-index links: {reakt_idx_left:.2f}", reaktiv_index_textposition, cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
-        
+    
         
             ############# Speichere Winkel für linke Seite in Textdatei #################
 
@@ -662,10 +681,21 @@ def motion2video_3d(motion, save_path, video_basename, fps=25, keep_imgs = False
                 f.write(f"Winkel linkes Knie von Front: {l_knee_angle:.2f} Grad" + '\n') 
                 f.write(f"Seitliche Rumpfbewegung / Hüfte Nacken y-Axe: {hip_neck_angle:.2f} Grad"+ '\n')
                 f.write(f"Bodenkontaktzeit linker Fuß in Sekunden: {bodenkontaktzeit_left/25:.2f}"+ '\n')
-                f.write(f"Sprunghöhe: {head_diff}" + '\n')
+                f.write(f"Sprunghöhe (ohne Höhe der Treppe): {head_diff}" + '\n')
 
             # Speichere Endergebnisse im letzten Frame
             if (idx == anzahl_frames): 
+
+                # Berechne die Höhe der Treppenstufe und addiere diese zur Sprunghöhe
+                if (l_foot_first_y_val != 0 and maxYValueFootLeft>l_foot_first_y_val):
+                    treppe = (maxYValueFootLeft - l_foot_first_y_val)
+                    print('Höhe der Treppenstufe: ', treppe)
+                    head_diff = head_diff + treppe
+
+                # Berechne Reaktivitätsindex = Sprunghöhe / Bodenkontaktzeit
+                reakt_idx_left = head_diff / (bodenkontaktzeit_left/25) # Angabe in Sekunden (bei 25fps)
+                cv2.putText(frame_vis, f"Reaktiv.-index links: {reakt_idx_left:.2f}", reaktiv_index_textposition, cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+
                 # erstelle eine Datei für die Endergebnisse der linken Seite
                 filename_results_left = video_basename + '_results.txt'  # Create a unique filename
                 output_path_results_left = os.path.join('./outputs', filename_results_left)  # Path for the results file
