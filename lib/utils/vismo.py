@@ -470,9 +470,9 @@ def motion2video_3d(motion, save_path, video_basename, fps=25, keep_imgs = False
 
         if (hip_neck_angle > 5):
             # färbe rot, wenn Körperhaltung zu schief
-            cv2.putText(frame_vis, f"Hip Neck y-Axis: {hip_neck_angle:.2f} Degree",hip_neck_angle_textposition,cv2.FONT_HERSHEY_SIMPLEX,0.5, (255, 0, 0), 1)
+            cv2.putText(frame_vis, f"Seitliche Rumpfbewegung: {hip_neck_angle:.2f} Grad",hip_neck_angle_textposition,cv2.FONT_HERSHEY_SIMPLEX,0.5, (255, 0, 0), 1)
         else:
-            cv2.putText(frame_vis, f"Hip Neck y-Axis: {hip_neck_angle:.2f} Degree",hip_neck_angle_textposition,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+            cv2.putText(frame_vis, f"Seitliche Rumpfbewegung: {hip_neck_angle:.2f} Grad",hip_neck_angle_textposition,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
         
         
 ############### Sprunghöhe ############################
@@ -515,13 +515,13 @@ def motion2video_3d(motion, save_path, video_basename, fps=25, keep_imgs = False
             # Berechne Valgus/Varus anhand des rechten Kniewinkels
             r_knee_angle, max_angle_knee_right = calculate_angle(rhip, rkne, rank, max_angle_knee_right, coordinate)
             # gib Winkel auf Video aus
-            if (r_knee_angle  < 170):
+            if (r_knee_angle  < 168):
                 # färbe Ausgabe rot wenn Valgus/Varus Kniewinkel zu groß
-                cv2.putText(frame_vis, f"Right knee angle: {r_knee_angle:.2f} Degree",knee_textposition,cv2.FONT_HERSHEY_SIMPLEX,0.5, (255, 0, 0), 1)
+                cv2.putText(frame_vis, f"Winkel rechtes Knie: {r_knee_angle:.2f} Grad",knee_textposition,cv2.FONT_HERSHEY_SIMPLEX,0.5, (255, 0, 0), 1)
             else:
-                cv2.putText(frame_vis, f"Right knee angle: {r_knee_angle:.2f} Degree",knee_textposition,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+                cv2.putText(frame_vis, f"Winkel rechtes Knie: {r_knee_angle:.2f} Grad",knee_textposition,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
             
-            #if (max_angle_knee_right  < 170):
+            #if (max_angle_knee_right  < 168):
                 # färbe Ausgabe rot wenn Valgus/Varus Kniewinkel zu groß
             #    cv2.putText(frame_vis, f"Right knee max angle: {max_angle_knee_right:.2f} Degree",knee_max_textposition,cv2.FONT_HERSHEY_SIMPLEX,0.5, (255, 0, 0), 1) 
             #else:
@@ -561,7 +561,7 @@ def motion2video_3d(motion, save_path, video_basename, fps=25, keep_imgs = False
 
             # Gib die Bodenkontaktzeit auf Video aus
             if (bodenkontaktzeit_right != 0): 
-                cv2.putText(frame_vis, f"Bodenkontaktzeit rechtes: {bodenkontaktzeit_right:.2f}", bodenkontaktzeit_textposition, cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+                cv2.putText(frame_vis, f"Bodenkontaktzeit rechts: {bodenkontaktzeit_right:.2f}", bodenkontaktzeit_textposition, cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
                 
             ############# Speichere Winkel f. rechte Seite in Textdatei #################
 
@@ -620,13 +620,13 @@ def motion2video_3d(motion, save_path, video_basename, fps=25, keep_imgs = False
             l_knee_angle , max_angle_knee_left = calculate_angle(lhip, lkne, lank, max_angle_knee_left, coordinate)
 
             # gib Winkel auf Video aus
-            if (l_knee_angle  < 170):
+            if (l_knee_angle  < 168):
                 # färbe Ausgabe rot wenn Valgus/Varus Kniewinkel zu groß
-                cv2.putText(frame_vis, f"Left knee angle: {l_knee_angle:.2f} Degree",knee_textposition,cv2.FONT_HERSHEY_SIMPLEX,0.5, (255, 0, 0), 1)
+                cv2.putText(frame_vis, f"Winkel linkes Knie: {l_knee_angle:.2f} Degree",knee_textposition,cv2.FONT_HERSHEY_SIMPLEX,0.5, (255, 0, 0), 1)
             else:
-                cv2.putText(frame_vis, f"Left knee angle: {l_knee_angle:.2f} Degree",knee_textposition,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
+                cv2.putText(frame_vis, f"Winkel linkes Knie: {l_knee_angle:.2f} Degree",knee_textposition,cv2.FONT_HERSHEY_SIMPLEX,0.5, (0, 0, 0), 1)
 
-            #if (max_angle_knee_left  < 170):
+            #if (max_angle_knee_left  < 168):
                 # färbe Ausgabe rot wenn Valgus/Varus Kniewinkel zu groß
             #    cv2.putText(frame_vis, f"Left knee max angle: {max_angle_knee_left:.2f} Degree",knee_max_textposition,cv2.FONT_HERSHEY_SIMPLEX,0.5, (255, 0, 0), 1) 
             #else:
