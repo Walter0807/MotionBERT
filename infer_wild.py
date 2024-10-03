@@ -89,9 +89,9 @@ with torch.no_grad():
 
 results_all = np.hstack(results_all)
 results_all = np.concatenate(results_all)
+np.save('%s/X3D.npy' % (opts.out_path), results_all)
 render_and_save(results_all, '%s/X3D.mp4' % (opts.out_path), keep_imgs=False, fps=fps_in)
 if opts.pixel:
     # Convert to pixel coordinates
     results_all = results_all * (min(vid_size) / 2.0)
     results_all[:,:,:2] = results_all[:,:,:2] + np.array(vid_size) / 2.0
-np.save('%s/X3D.npy' % (opts.out_path), results_all)
