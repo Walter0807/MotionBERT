@@ -14,6 +14,11 @@ from mpl_toolkits.mplot3d import Axes3D
 from lib.utils.utils_smpl import *
 import ipdb
 
+
+from vispy import app, scene, io
+from vispy.color import Color
+
+
 def render_and_save(motion_input, save_path, keep_imgs=False, fps=25, color="#F96706#FB8D43#FDB381", with_conf=False, draw_face=False):
     ensure_dir(os.path.dirname(save_path))
     motion = copy.deepcopy(motion_input)
@@ -34,7 +39,7 @@ def render_and_save(motion_input, save_path, keep_imgs=False, fps=25, color="#F9
         motion2video_mesh(motion, save_path=save_path, keep_imgs=keep_imgs, fps=fps, draw_face=draw_face)
     else:
         motion_world = pixel2world_vis_motion(motion, dim=3)
-        motion2video_3d(motion_world, save_path=save_path, keep_imgs=keep_imgs, fps=fps)
+        motion2video_3d_vispy(motion_world, save_path=save_path, fps=fps)
         
 def pixel2world_vis(pose):
 #     pose: (17,2)
@@ -242,6 +247,60 @@ def motion2video(motion, save_path, colors, h=512, w=512, bg_color=(255, 255, 25
         videowriter.close()
 
     return out_array
+
+def motion2video_3d_vispy(motion, save_path, fps=25):
+    canvas = scene.SceneCanvas(show=False)
+    view = canvas.central_widget.add_view()
+
+    camera = scene.cameras.TurntableCamera(elevation=0, azimuth=45, roll=0, distance=4)
+    view.camera = camera
+
+    # Define joint pairs
+    joint_pairs = np.array([[0, 1], [1, 2], [2, 3], [0, 4], [4, 5], [5, 6], 
+                            [0, 7], [7, 8], [8, 9], [8, 11], [8, 14], [9, 10], 
+                            [11, 12], [12, 13], [14, 15], [15, 16]])
+    joint_pairs_left = np.array([[8, 11], [11, 12], [12, 13], [0, 4], [4, 5], [5, 6]])
+    joint_pairs_right = np.array([[8, 14], [14, 15], [15, 16], [0, 1], [1, 2], [2, 3]])
+
+    # Create line and scatter plots for joints and limbs
+    lines = scene.Line(parent=view.scene, color='gray', method='gl', width=20)
+    scatter = scene.Markers(parent=view.scene, edge_color='green')
+
+    # Set up colors
+    color_mid = Color("#00457E").rgb
+    color_left = Color("#02315E").rgb
+    color_right = Color("#2F70AF").rgb
+
+    # Set up video writer
+    # writer = imageio.get_writer(save_path, fps=fps)
+    colors = np.full((len(joint_pairs), 3), color_mid)
+    colors[np.isin(joint_pairs, joint_pairs_left).all(axis=1)] = color_left
+    colors[np.isin(joint_pairs, joint_pairs_right).all(axis=1)] = color_right
+    lines.set_data(color=np.repeat(colors, 2, axis=0))
+    motion = motion - np.reshape(motion[3, :, 0], (1, -1, 1))
+    writer = imageio.get_writer(save_path, fps=fps)
+
+    for f in tqdm(range(motion.shape[2])):
+        j3d = motion[:, :, f] * 0.004
+        
+        # Update joint positions
+        j3d_adjusted = j3d[:, [0, 2, 1]] 
+        j3d_adjusted[:, 2] = - j3d_adjusted[:, 2] 
+        scatter.set_data(j3d_adjusted, edge_color='black', face_color='white', size=10)
+        
+        # Update limb positions
+        connects = np.c_[j3d_adjusted[joint_pairs[:, 0]], j3d_adjusted[joint_pairs[:, 1]]].reshape(-1, 3)
+        lines.set_data(pos=connects, connect='segments')
+        
+        # Set view limits
+        view.camera.set_range()
+        
+        # Render the scene and save the frame
+        canvas.update()
+        frame = canvas.render()
+        writer.append_data(frame)
+
+    writer.close()
 
 def motion2video_3d(motion, save_path, fps=25, keep_imgs = False):
 #     motion: (17,3,N)
