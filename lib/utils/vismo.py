@@ -19,7 +19,7 @@ from vispy import app, scene, io
 from vispy.color import Color
 
 
-def render_and_save(motion_input, save_path, keep_imgs=False, fps=25, color="#F96706#FB8D43#FDB381", with_conf=False, draw_face=False):
+def render_and_save(motion_input, save_path, keep_imgs=False, fps=25, color="#F96706#FB8D43#FDB381", with_conf=False, draw_face=False, metrics=None):
     ensure_dir(os.path.dirname(save_path))
     motion = copy.deepcopy(motion_input)
     if motion.shape[-1]==2 or motion.shape[-1]==3:
@@ -39,7 +39,7 @@ def render_and_save(motion_input, save_path, keep_imgs=False, fps=25, color="#F9
         motion2video_mesh(motion, save_path=save_path, keep_imgs=keep_imgs, fps=fps, draw_face=draw_face)
     else:
         motion_world = pixel2world_vis_motion(motion, dim=3)
-        motion2video_3d_vispy(motion_world, save_path=save_path, fps=fps)
+        motion2video_3d_vispy(motion_world, save_path=save_path, fps=fps, metrics=metrics)
         
 def pixel2world_vis(pose):
 #     pose: (17,2)
@@ -248,11 +248,37 @@ def motion2video(motion, save_path, colors, h=512, w=512, bg_color=(255, 255, 25
 
     return out_array
 
-def motion2video_3d_vispy(motion, save_path, fps=25):
+
+def plot_body_metric(metrics): 
+    """
+        metrics : dict
+    """
+    n_plots = sum([len(metrics[key]) for key in metrics])
+    fig, axes = plt.subplots(n_plots, 1, figsize=(10, 4 * n_plots))
+    fig.tight_layout()
+
+    plot_idx = 0
+
+    for body_part in metrics: 
+        for metric_name in metrics[body_part]: 
+
+            plot_title = f"{body_part} - {metric_name}"
+            x = np.arange(0, len(metrics[body_part][metric_name]))
+            y = metrics[body_part][metric_name]
+            axes[plot_idx].plot(x, y)
+            axes[plot_idx].set_title(plot_title)
+            plot_idx += 1
+
+    return fig, axes
+
+
+
+
+def motion2video_3d_vispy(motion, save_path, fps=25, metrics=None):
     canvas = scene.SceneCanvas(show=False)
     view = canvas.central_widget.add_view()
 
-    camera = scene.cameras.TurntableCamera(elevation=0, azimuth=45, roll=0, distance=4)
+    camera = scene.cameras.TurntableCamera(elevation=2, azimuth=30, roll=10, distance=4)
     view.camera = camera
 
     # Define joint pairs
@@ -279,19 +305,28 @@ def motion2video_3d_vispy(motion, save_path, fps=25):
     lines.set_data(color=np.repeat(colors, 2, axis=0))
     motion = motion - np.reshape(motion[3, :, 0], (1, -1, 1))
     writer = imageio.get_writer(save_path, fps=fps)
+    text = scene.Text(f'Frame : 0', color='white', pos=[2, 2, 0], font_size=80)
+    view.add(text)
 
     for f in tqdm(range(motion.shape[2])):
         j3d = motion[:, :, f] * 0.004
         
         # Update joint positions
         j3d_adjusted = j3d[:, [0, 2, 1]] 
-        j3d_adjusted[:, 2] = - j3d_adjusted[:, 2] 
+        j3d_adjusted = - j3d_adjusted 
         scatter.set_data(j3d_adjusted, edge_color='black', face_color='white', size=10)
-        
+
         # Update limb positions
         connects = np.c_[j3d_adjusted[joint_pairs[:, 0]], j3d_adjusted[joint_pairs[:, 1]]].reshape(-1, 3)
         lines.set_data(pos=connects, connect='segments')
         
+        text.text = f'Frame: {f}'
+        highest_point = np.max(j3d_adjusted[:, 2])
+    
+        # Position the text above the highest point
+        text_pos = text_pos = [0, 0, highest_point]
+        text.pos = text_pos
+
         # Set view limits
         view.camera.set_range()
         
@@ -301,6 +336,12 @@ def motion2video_3d_vispy(motion, save_path, fps=25):
         writer.append_data(frame)
 
     writer.close()
+
+    if metrics: 
+        fig, axes = plot_body_metric(metrics)
+        file_name = save_path.replace(".mp4", "_metrics.png")
+        plt.savefig(file_name)
+
 
 def motion2video_3d(motion, save_path, fps=25, keep_imgs = False):
 #     motion: (17,3,N)

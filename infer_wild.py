@@ -11,6 +11,7 @@ from lib.utils.learning import *
 from lib.utils.utils_data import flip_data
 from lib.data.dataset_wild import WildDetDataset
 from lib.utils.vismo import render_and_save
+from lib.utils.body_metrics import get_all_metrics
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -89,8 +90,9 @@ with torch.no_grad():
 
 results_all = np.hstack(results_all)
 results_all = np.concatenate(results_all)
+metrics_dict = get_all_metrics(results_all)
 np.save('%s/X3D.npy' % (opts.out_path), results_all)
-render_and_save(results_all, '%s/X3D.mp4' % (opts.out_path), keep_imgs=False, fps=fps_in)
+render_and_save(results_all, '%s/X3D.mp4' % (opts.out_path), keep_imgs=False, fps=fps_in, metrics=metrics_dict)
 if opts.pixel:
     # Convert to pixel coordinates
     results_all = results_all * (min(vid_size) / 2.0)
