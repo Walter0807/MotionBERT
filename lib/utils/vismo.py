@@ -278,7 +278,7 @@ def motion2video_3d_vispy(motion, save_path, fps=25, metrics=None):
     canvas = scene.SceneCanvas(show=False)
     view = canvas.central_widget.add_view()
 
-    camera = scene.cameras.TurntableCamera(elevation=2, azimuth=30, roll=10, distance=4)
+    camera = scene.cameras.TurntableCamera(elevation=2, azimuth=0, roll=0, distance=4)
     view.camera = camera
 
     # Define joint pairs
@@ -303,33 +303,65 @@ def motion2video_3d_vispy(motion, save_path, fps=25, metrics=None):
     colors[np.isin(joint_pairs, joint_pairs_left).all(axis=1)] = color_left
     colors[np.isin(joint_pairs, joint_pairs_right).all(axis=1)] = color_right
     lines.set_data(color=np.repeat(colors, 2, axis=0))
+
     motion = motion - np.reshape(motion[3, :, 0], (1, -1, 1))
+    print(motion.shape)
+    j3d_adjusted = motion[:, [0, 2, 1], ] # (x, z, y)
+    j3d_adjusted = - j3d_adjusted 
+
+    axis_length = 1.0
+    axis_points = np.array([
+        [0, 0, 0],
+        [axis_length, 0, 0],
+        [0, axis_length, 0],
+        [0, 0, axis_length]
+    ])
+    axis_connects = np.array([[0, 1], [0, 2], [0, 3]])
+
+    axis_lines = scene.Line(pos=axis_points, connect=axis_connects, 
+                            method='gl', parent=view.scene, width=10)
+
+    # Add axis labels
+    axis_labels = ['X', 'Y', 'Z']
+    label_offset = 0.1  # Offset to position labels slightly away from axis ends
+    for i, label in enumerate(axis_labels):
+        pos = axis_points[i+1] + label_offset
+        text = scene.Text(label, pos=pos, color='white',
+                          font_size=24, parent=view.scene)
+
+
+    print("adjusted : ", j3d_adjusted.shape)
+
     writer = imageio.get_writer(save_path, fps=fps)
     text = scene.Text(f'Frame : 0', color='white', pos=[2, 2, 0], font_size=80)
     view.add(text)
 
-    for f in tqdm(range(motion.shape[2])):
-        j3d = motion[:, :, f] * 0.004
+    textankle = scene.Text(f'', color='white', pos=[2, 2, 0], font_size=80)
+    view.add(textankle)
+
+    for f in tqdm(range(j3d_adjusted.shape[2])):
+        j3d = j3d_adjusted[:, :, f] * 0.004 # (17, 3)
         
-        # Update joint positions
-        j3d_adjusted = j3d[:, [0, 2, 1]] 
-        j3d_adjusted = - j3d_adjusted 
-        scatter.set_data(j3d_adjusted, edge_color='black', face_color='white', size=10)
+        # Update joint positions    
+        
+        scatter.set_data(j3d, edge_color='black', face_color='white', size=10)
 
         # Update limb positions
-        connects = np.c_[j3d_adjusted[joint_pairs[:, 0]], j3d_adjusted[joint_pairs[:, 1]]].reshape(-1, 3)
+        connects = np.c_[j3d[joint_pairs[:, 0]], j3d[joint_pairs[:, 1]]].reshape(-1, 3)
         lines.set_data(pos=connects, connect='segments')
         
         text.text = f'Frame: {f}'
-        highest_point = np.max(j3d_adjusted[:, 2])
+        highest_point = np.max(j3d[:, 2])
     
         # Position the text above the highest point
-        text_pos = text_pos = [0, 0, highest_point]
+        text_pos = [0, 0, highest_point]
         text.pos = text_pos
+        textankle.text = f"{j3d[6, 2]:2f}"
+        textankle.pos = j3d[6, :]
 
         # Set view limits
         view.camera.set_range()
-        
+
         # Render the scene and save the frame
         canvas.update()
         frame = canvas.render()

@@ -1,5 +1,5 @@
 import numpy as np 
-
+from .vismo import pixel2world_vis_motion
 
 
 
@@ -127,7 +127,9 @@ def compute_angle(skeleton, joints):
     return rotation_angle_deg
 
 
-def get_all_metrics(skeleton, y_last=True): 
+def get_all_metrics(skeleton, y_last=False): 
+    skeleton = - skeleton
+    
     body_segments = {
         "shoulders": [14, 11], 
         "hips" : [1, 5], 
@@ -166,6 +168,7 @@ def get_all_metrics(skeleton, y_last=True):
     right_ankle_z = skeleton[:, JOINT_NAME_TO_INDEX["rank"], z_index]
     left_ankle_y = skeleton[:, JOINT_NAME_TO_INDEX["lank"], y_index]
     left_ankle_z = skeleton[:, JOINT_NAME_TO_INDEX["lank"], z_index]
+    left_ankle_x = skeleton[:, JOINT_NAME_TO_INDEX["lank"], x_index]
     
     output = {
         "shoulders" : {
@@ -200,7 +203,8 @@ def get_all_metrics(skeleton, y_last=True):
         }, 
         "left_ankle" : {
             "y_corod": left_ankle_y, 
-            "z_coord": left_ankle_z
+            "z_coord": left_ankle_z, 
+            "x_coord": left_ankle_x
         }
     }
 
