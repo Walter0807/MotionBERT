@@ -297,8 +297,6 @@ def motion2video_3d_vispy(motion, save_path, fps=25, metrics=None):
     color_left = Color("#02315E").rgb
     color_right = Color("#2F70AF").rgb
 
-    # Set up video writer
-    # writer = imageio.get_writer(save_path, fps=fps)
     colors = np.full((len(joint_pairs), 3), color_mid)
     colors[np.isin(joint_pairs, joint_pairs_left).all(axis=1)] = color_left
     colors[np.isin(joint_pairs, joint_pairs_right).all(axis=1)] = color_right
@@ -329,8 +327,6 @@ def motion2video_3d_vispy(motion, save_path, fps=25, metrics=None):
         text = scene.Text(label, pos=pos, color='white',
                           font_size=24, parent=view.scene)
 
-
-    print("adjusted : ", j3d_adjusted.shape)
 
     writer = imageio.get_writer(save_path, fps=fps)
     text = scene.Text(f'Frame : 0', color='white', pos=[2, 2, 0], font_size=80)

@@ -43,6 +43,26 @@ def compute_center_of_mass(keypoints):
     center_of_mass = np.mean(keypoints, axis=1)
     return center_of_mass
 
+
+def plane_normal(p1, p2, p3):
+    """Calculate the normal vector of a plane defined by three points."""
+    v1 = p2 - p1
+    v2 = p3 - p1
+    return np.cross(v1, v2)
+
+def point_plane_side(plane_point, plane_normal, point):
+    """Determine which side of a plane a point is on."""
+    v = point - plane_point
+    return np.dot(v, plane_normal)
+
+
+def generate_plane_signal(p1, p2, p3, p4, threshold): 
+    normal_vec = plane_normal(p1, p2, p3)
+    p4_side = point_plane_side(p1, normal_vec, p4) 
+    signal = 1 if threshold > 0 else 0
+    return signal 
+
+
 def compute_x_axis_rotation_angle(skeleton, joints):
     """
     compute x axis rotation agle for given joints. 
@@ -141,7 +161,14 @@ def get_all_metrics(skeleton, y_last=False):
         "right_arm" : [[15, 14], [15, 16]], 
         "left_arm" : [[12, 11], [12, 13]], 
     }
+
     
+    y_index = 2 if y_last else 1
+    x_index = 0
+    z_index = 1 if y_last else 2
+
+    rfoot_raised = point_plane_side()
+
     shoulder_x_axis_rotation = compute_x_axis_rotation_angle(skeleton, body_segments["shoulders"])
     hips_x_axis_rotation = compute_x_axis_rotation_angle(skeleton, body_segments["hips"])
 
@@ -159,10 +186,6 @@ def get_all_metrics(skeleton, y_last=False):
     left_arm_angle = compute_angle(skeleton, body_angles["left_arm"])
     left_leg_angle_velocity = compute_velocity(left_leg_angle, 1/30)
     left_leg_angle_accel = compute_acceleration(left_leg_angle_velocity, 1/30)
-
-    y_index = 2 if y_last else 1
-    x_index = 0
-    z_index = 1 if y_last else 2
 
     right_ankle_y = skeleton[:, JOINT_NAME_TO_INDEX["rank"], y_index]
     right_ankle_z = skeleton[:, JOINT_NAME_TO_INDEX["rank"], z_index]
