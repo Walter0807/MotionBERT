@@ -240,4 +240,3 @@ if __name__ == "__main__":
     opts = parse_args()
     args = get_config(opts.config)
     train_with_config(args, opts)
-    
