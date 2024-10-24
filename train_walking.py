@@ -169,7 +169,6 @@ def train_with_config(args, opts):
                 if torch.cuda.is_available():
                     batch_gt = batch_gt.cuda()
                     batch_input = batch_input.cuda()
-                print('-------------', batch_input.shape)
                 output = model(batch_input) # (N, num_classes)
                 optimizer.zero_grad()
                 loss_train = criterion(output, batch_gt)

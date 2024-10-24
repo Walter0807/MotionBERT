@@ -4,10 +4,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class ActionHeadClassification(nn.Module):
+    """
+    Shimada
+    To avoid "Error: Expected more than 1 value per channel when training", comment out the batch norm layer
+    """
     def __init__(self, dropout_ratio=0., dim_rep=512, num_classes=1, num_joints=17, hidden_dim=2048):
         super(ActionHeadClassification, self).__init__()
         self.dropout = nn.Dropout(p=dropout_ratio)
-        self.bn = nn.BatchNorm1d(hidden_dim, momentum=0.1)
+        # self.bn = nn.BatchNorm1d(hidden_dim, momentum=0.1)
         self.relu = nn.ReLU(inplace=True)
         self.fc1 = nn.Linear(dim_rep*num_joints, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, num_classes)
@@ -23,7 +27,7 @@ class ActionHeadClassification(nn.Module):
         feat = feat.reshape(N, M, -1)           # (N, M, J*C)
         feat = feat.mean(dim=1)
         feat = self.fc1(feat)
-        feat = self.bn(feat)
+        # feat = self.bn(feat)
         feat = self.relu(feat)
         feat = self.fc2(feat)
         return feat
