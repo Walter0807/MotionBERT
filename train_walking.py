@@ -119,19 +119,19 @@ def train_with_config(args, opts):
           'prefetch_factor': 4,
           'persistent_workers': True
     }
-    data_path = 'data/action/%s.pkl' % args.dataset
-    data_path = 'data/action/%s.pkl' % args.dataset
+    # data_path = 'data/action/%s.pkl' % args.dataset
+
     json_paths = [
-        "/home/u01163/3A/MotionBERT/data/walking/train/model/json/1.json",
-        "/home/u01163/3A/MotionBERT/data/walking/train/model/json/2.json",
-        "/home/u01163/3A/MotionBERT/data/walking/train/model/json/3.json",
-        # "/home/u01163/3A/MotionBERT/data/walking/train/model/json/4.json",
-        "/home/u01163/3A/MotionBERT/data/walking/train/model/json/5.json",
-        "/home/u01163/3A/MotionBERT/data/walking/train/model/json/6.json",
-        "/home/u01163/3A/MotionBERT/data/walking/train/model/json/7.json",
-        "/home/u01163/3A/MotionBERT/data/walking/train/normal/json/1.json",
-        "/home/u01163/3A/MotionBERT/data/walking/train/normal/json/2.json",
-        "/home/u01163/3A/MotionBERT/data/walking/train/normal/json/3.json",
+        "/home/u01161/MotionBERT/data/walking/train/model/json/1.json",
+        "/home/u01161/MotionBERT/data/walking/train/model/json/2.json",
+        "/home/u01161/MotionBERT/data/walking/train/model/json/3.json",
+        # "/home/u01161/MotionBERT/data/walking/train/model/json/4.json",
+        "/home/u01161/MotionBERT/data/walking/train/model/json/5.json",
+        "/home/u01161/MotionBERT/data/walking/train/model/json/6.json",
+        "/home/u01161/MotionBERT/data/walking/train/model/json/7.json",
+        "/home/u01161/MotionBERT/data/walking/train/normal/json/1.json",
+        "/home/u01161/MotionBERT/data/walking/train/normal/json/2.json",
+        "/home/u01161/MotionBERT/data/walking/train/normal/json/3.json",
     ]
     labels = [
         1,
