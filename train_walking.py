@@ -19,7 +19,7 @@ from torch.utils.data import DataLoader
 from lib.utils.tools import *
 from lib.utils.learning import *
 from lib.model.loss import *
-from lib.data.dataset_alphapose import AlphaPoseDataset
+from lib.data.dataset_alphapose_shimada import AlphaPoseDataset
 from lib.model.model_walking import WalkingNet
 
 random.seed(0)
@@ -121,32 +121,7 @@ def train_with_config(args, opts):
     }
     # data_path = 'data/action/%s.pkl' % args.dataset
 
-    json_paths = [
-        "/home/u01161/MotionBERT/data/walking/train/model/json/1.json",
-        "/home/u01161/MotionBERT/data/walking/train/model/json/2.json",
-        "/home/u01161/MotionBERT/data/walking/train/model/json/3.json",
-        # "/home/u01161/MotionBERT/data/walking/train/model/json/4.json",
-        "/home/u01161/MotionBERT/data/walking/train/model/json/5.json",
-        "/home/u01161/MotionBERT/data/walking/train/model/json/6.json",
-        "/home/u01161/MotionBERT/data/walking/train/model/json/7.json",
-        "/home/u01161/MotionBERT/data/walking/train/normal/json/1.json",
-        "/home/u01161/MotionBERT/data/walking/train/normal/json/2.json",
-        "/home/u01161/MotionBERT/data/walking/train/normal/json/3.json",
-    ]
-    labels = [
-        1,
-        1,
-        1,
-        # 1,
-        1,
-        1,
-        1,
-        0,
-        0,
-        0,
-    ]
-
-    alphapose_dataset = AlphaPoseDataset(json_paths, labels, n_frames=243, random_move=True, scale_range=[1,1], check_split=True)
+    alphapose_dataset = AlphaPoseDataset(os.path.join('data', 'walking'), n_frames=243, random_move=True, scale_range=[1,1], check_split=True)
     train_loader = DataLoader(alphapose_dataset, **trainloader_params)
     test_loader = DataLoader(alphapose_dataset, **testloader_params)
     chk_filename = os.path.join(opts.checkpoint, "latest_epoch.bin")
@@ -194,6 +169,7 @@ def train_with_config(args, opts):
                 if torch.cuda.is_available():
                     batch_gt = batch_gt.cuda()
                     batch_input = batch_input.cuda()
+                print('-------------', batch_input.shape)
                 output = model(batch_input) # (N, num_classes)
                 optimizer.zero_grad()
                 loss_train = criterion(output, batch_gt)
