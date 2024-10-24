@@ -63,7 +63,8 @@ class ActionNet(nn.Module):
         '''
             Input: (N, M x T x 17 x 3) 
         '''
-        N, M, T, J, C = x.shape
+        N, T, J, C = x.shape
+        M = 1 # 動くように変更した
         x = x.reshape(N*M, T, J, C)        
         feat = self.backbone.get_representation(x)
         feat = feat.reshape([N, M, T, self.feat_J, -1])      # (N, M, T, J, C)
