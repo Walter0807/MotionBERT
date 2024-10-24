@@ -1,1 +1,0 @@
-Loading checkpoint checkpoint/action/MB_ft_NTU60_xsub/best_epoch.bin
