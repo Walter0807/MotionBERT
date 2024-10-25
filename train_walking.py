@@ -19,7 +19,7 @@ from torch.utils.data import DataLoader
 from lib.utils.tools import *
 from lib.utils.learning import *
 from lib.model.loss import *
-from lib.data.dataset_alphapose_shimada import AlphaPoseDataset
+from lib.data.dataset_alphapose import AlphaPoseDataset
 from lib.model.model_walking import WalkingNet
 
 random.seed(0)
@@ -73,154 +73,181 @@ def validate(test_loader, model, criterion):
 
 
 def train_with_config(args, opts):
-    print(args)
-    try:
-        os.makedirs(opts.checkpoint)
-    except OSError as e:
-        if e.errno != errno.EEXIST:
-            raise RuntimeError('Unable to create checkpoint directory:', opts.checkpoint)
-    train_writer = tensorboardX.SummaryWriter(os.path.join(opts.checkpoint, "logs"))
-    model_backbone = load_backbone(args)
-    if args.finetune:
-        if opts.resume or opts.evaluate:
-            pass
-        else:
-            chk_filename = os.path.join(opts.pretrained, opts.selection)
-            print('Loading backbone', chk_filename)
-            checkpoint = torch.load(chk_filename, map_location=lambda storage, loc: storage)['model_pos']
-            model_backbone = load_pretrained_weights(model_backbone, checkpoint)
-    if args.partial_train:
-        model_backbone = partial_train_layers(model_backbone, args.partial_train)
-    model = WalkingNet(backbone=model_backbone, dim_rep=args.dim_rep, num_classes=args.action_classes, dropout_ratio=args.dropout_ratio, version=args.model_version, hidden_dim=args.hidden_dim, num_joints=args.num_joints)
-    criterion = torch.nn.CrossEntropyLoss()
-    if torch.cuda.is_available():
-        model = nn.DataParallel(model)
-        model = model.cuda()
-        criterion = criterion.cuda()
-    best_acc = 0
-    model_params = 0
-    for parameter in model.parameters():
-        model_params = model_params + parameter.numel()
-    print('INFO: Trainable parameter count:', model_params)
-    print('Loading dataset...')
-    trainloader_params = {
-          'batch_size': args.batch_size,
-          'shuffle': True,
-          'num_workers': 8,
-          'pin_memory': True,
-          'prefetch_factor': 4,
-          'persistent_workers': True
-    }
-    testloader_params = {
-          'batch_size': args.batch_size,
-          'shuffle': False,
-          'num_workers': 8,
-          'pin_memory': True,
-          'prefetch_factor': 4,
-          'persistent_workers': True
-    }
-    # data_path = 'data/action/%s.pkl' % args.dataset
-
-    alphapose_dataset = AlphaPoseDataset(os.path.join('data', 'walking'), n_frames=243, random_move=True, scale_range=[1,1], check_split=True)
-    train_loader = DataLoader(alphapose_dataset, **trainloader_params)
-    test_loader = DataLoader(alphapose_dataset, **testloader_params)
-    chk_filename = os.path.join(opts.checkpoint, "latest_epoch.bin")
-    if os.path.exists(chk_filename):
-        opts.resume = chk_filename
-    if opts.resume or opts.evaluate:
-        chk_filename = opts.evaluate if opts.evaluate else opts.resume
-        print('Loading checkpoint', chk_filename)
-        checkpoint = torch.load(chk_filename, map_location=lambda storage, loc: storage)
-        model.load_state_dict(checkpoint['model'], strict=True)
-
-    if not opts.evaluate:
-        optimizer = optim.AdamW(
-            [     {"params": filter(lambda p: p.requires_grad, model.module.backbone.parameters()), "lr": args.lr_backbone},
-                  {"params": filter(lambda p: p.requires_grad, model.module.head.parameters()), "lr": args.lr_head},
-            ],      lr=args.lr_backbone,
-                    weight_decay=args.weight_decay
-        )
-
-        scheduler = StepLR(optimizer, step_size=1, gamma=args.lr_decay)
-        st = 0
-        print('INFO: Training on {} batches'.format(len(train_loader)))
-        if opts.resume:
-            st = checkpoint['epoch']
-            if 'optimizer' in checkpoint and checkpoint['optimizer'] is not None:
-                optimizer.load_state_dict(checkpoint['optimizer'])
+    all_json_paths, labels = get_data(os.path.join('data', 'walking'))
+    kcv_results = {}
+    # set k-cv
+    k = 5
+    for i in range(k):
+        train_json_paths, train_labels, test_json_paths, test_labels = split_dataset_labels_kcv(all_json_paths, labels, k, i)
+        print(args)
+        try:
+            os.makedirs(os.path.join(opts.checkpoint, str(i)))
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise RuntimeError('Unable to create checkpoint directory:', opts.checkpoint)
+        train_writer = tensorboardX.SummaryWriter(os.path.join(opts.checkpoint, str(i), "logs"))
+        model_backbone = load_backbone(args)
+        if args.finetune:
+            if opts.resume or opts.evaluate:
+                pass
             else:
-                print('WARNING: this checkpoint does not contain an optimizer state. The optimizer will be reinitialized.')
-            lr = checkpoint['lr']
-            if 'best_acc' in checkpoint and checkpoint['best_acc'] is not None:
-                best_acc = checkpoint['best_acc']
-        # Training
-        for epoch in range(st, args.epochs):
-            print('Training epoch %d.' % epoch)
-            losses_train = AverageMeter()
-            accs_train = AverageMeter()
-            batch_time = AverageMeter()
-            data_time = AverageMeter()
-            model.train()
-            end = time.time()
-            iters = len(train_loader)
-            for idx, (batch_input, batch_gt) in tqdm(enumerate(train_loader)):    # (N, 2, T, 17, 3)
-                data_time.update(time.time() - end)
-                batch_size = len(batch_input)
-                if torch.cuda.is_available():
-                    batch_gt = batch_gt.cuda()
-                    batch_input = batch_input.cuda()
-                output = model(batch_input) # (N, num_classes)
-                optimizer.zero_grad()
-                loss_train = criterion(output, batch_gt)
-                losses_train.update(loss_train.item(), batch_size)
-                acc_train = binary_accuracy(output, batch_gt)
-                accs_train.update(acc_train, batch_size)
-                loss_train.backward()
-                optimizer.step()
-                batch_time.update(time.time() - end)
+                chk_filename = os.path.join(opts.pretrained, opts.selection)
+                print('Loading backbone', chk_filename)
+                checkpoint = torch.load(chk_filename, map_location=lambda storage, loc: storage)['model_pos']
+                model_backbone = load_pretrained_weights(model_backbone, checkpoint)
+        if args.partial_train:
+            model_backbone = partial_train_layers(model_backbone, args.partial_train)
+        model = WalkingNet(backbone=model_backbone, dim_rep=args.dim_rep, num_classes=args.action_classes, dropout_ratio=args.dropout_ratio, version=args.model_version, hidden_dim=args.hidden_dim, num_joints=args.num_joints)
+        criterion = torch.nn.CrossEntropyLoss()
+        if torch.cuda.is_available():
+            model = nn.DataParallel(model)
+            model = model.cuda()
+            criterion = criterion.cuda()
+        best_acc = 0
+        model_params = 0
+        for parameter in model.parameters():
+            model_params = model_params + parameter.numel()
+        print('INFO: Trainable parameter count:', model_params)
+        print('Loading dataset...')
+        trainloader_params = {
+            'batch_size': args.batch_size,
+            'shuffle': True,
+            'num_workers': 8,
+            'pin_memory': True,
+            'prefetch_factor': 4,
+            'persistent_workers': True
+        }
+        testloader_params = {
+            'batch_size': args.batch_size,
+            'shuffle': False,
+            'num_workers': 8,
+            'pin_memory': True,
+            'prefetch_factor': 4,
+            'persistent_workers': True
+        }
+        # data_path = 'data/action/%s.pkl' % args.dataset
+
+        train_alphapose_dataset = AlphaPoseDataset(train_json_paths, train_labels, train=True, n_frames=243, random_move=True, scale_range=[1,1], check_split=True)
+        test_alphapose_dataset = AlphaPoseDataset(test_json_paths, test_labels, train=False, n_frames=243, random_move=True, scale_range=[1,1], check_split=True)
+
+        train_loader = DataLoader(train_alphapose_dataset, **trainloader_params)
+        test_loader = DataLoader(test_alphapose_dataset, **testloader_params)
+
+        chk_filename = os.path.join(opts.checkpoint, str(i), "latest_epoch.bin")
+        if os.path.exists(chk_filename):
+            opts.resume = chk_filename
+        if opts.resume or opts.evaluate:
+            chk_filename = opts.evaluate if opts.evaluate else opts.resume
+            print('Loading checkpoint', chk_filename)
+            checkpoint = torch.load(chk_filename, map_location=lambda storage, loc: storage)
+            # dont load the model
+            # model.load_state_dict(checkpoint['model'], strict=True)
+
+        if not opts.evaluate:
+            optimizer = optim.AdamW(
+                [     {"params": filter(lambda p: p.requires_grad, model.module.backbone.parameters()), "lr": args.lr_backbone},
+                    {"params": filter(lambda p: p.requires_grad, model.module.head.parameters()), "lr": args.lr_head},
+                ],      lr=args.lr_backbone,
+                        weight_decay=args.weight_decay
+            )
+
+            scheduler = StepLR(optimizer, step_size=1, gamma=args.lr_decay)
+            st = 0
+            print('INFO: Training on {} batches'.format(len(train_loader)))
+            if opts.resume:
+                st = checkpoint['epoch']
+                if 'optimizer' in checkpoint and checkpoint['optimizer'] is not None:
+                    optimizer.load_state_dict(checkpoint['optimizer'])
+                else:
+                    print('WARNING: this checkpoint does not contain an optimizer state. The optimizer will be reinitialized.')
+                lr = checkpoint['lr']
+                if 'best_acc' in checkpoint and checkpoint['best_acc'] is not None:
+                    best_acc = checkpoint['best_acc']
+            # Training
+            all_accs_train, all_loss_train, all_accs_test, all_loss_test = [], [], [], []
+            for epoch in range(st, args.epochs):
+                print('Training epoch %d.' % epoch)
+                losses_train = AverageMeter()
+                accs_train = AverageMeter()
+                batch_time = AverageMeter()
+                data_time = AverageMeter()
+                model.train()
                 end = time.time()
-            if (idx + 1) % opts.print_freq == 0:
-                print('Train: [{0}][{1}/{2}]\t'
-                      'BT {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                      'DT {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                      'loss {loss.val:.3f} ({loss.avg:.3f})\t'
-                      'Binary_Acc {accs_train.val:.3f} ({accs_train.avg:.3f})'.format(
-                       epoch, idx + 1, len(train_loader), batch_time=batch_time,
-                       data_time=data_time, loss=losses_train, accs_train=accs_train))
-                sys.stdout.flush()
+                iters = len(train_loader)
+                for idx, (batch_input, batch_gt) in tqdm(enumerate(train_loader)):    # (N, 2, T, 17, 3)
+                    data_time.update(time.time() - end)
+                    batch_size = len(batch_input)
+                    if torch.cuda.is_available():
+                        batch_gt = batch_gt.cuda()
+                        batch_input = batch_input.cuda()
+                    output = model(batch_input) # (N, num_classes)
+                    optimizer.zero_grad()
+                    loss_train = criterion(output, batch_gt)
+                    losses_train.update(loss_train.item(), batch_size)
+                    acc_train = binary_accuracy(output, batch_gt)
+                    accs_train.update(acc_train, batch_size)
+                    loss_train.backward()
+                    optimizer.step()
+                    batch_time.update(time.time() - end)
+                    end = time.time()
+                if (idx + 1) % opts.print_freq == 0:
+                    print('Train: [{0}][{1}/{2}]\t'
+                        'BT {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                        'DT {data_time.val:.3f} ({data_time.avg:.3f})\t'
+                        'loss {loss.val:.3f} ({loss.avg:.3f})\t'
+                        'Binary_Acc {accs_train.val:.3f} ({accs_train.avg:.3f})'.format(
+                        epoch, idx + 1, len(train_loader), batch_time=batch_time,
+                        data_time=data_time, loss=losses_train, accs_train=accs_train))
+                    sys.stdout.flush()
 
-            test_loss, test_acc = validate(test_loader, model, criterion)
+                test_loss, test_acc = validate(test_loader, model, criterion)
 
-            train_writer.add_scalar('train_loss', losses_train.avg, epoch + 1)
-            train_writer.add_scalar('train_acc', accs_train.avg, epoch + 1)
-            train_writer.add_scalar('test_loss', test_loss, epoch + 1)
-            train_writer.add_scalar('test_acc', test_acc, epoch + 1)
+                train_writer.add_scalar('train_loss', losses_train.avg, epoch + 1)
+                train_writer.add_scalar('train_acc', accs_train.avg, epoch + 1)
+                train_writer.add_scalar('test_loss', test_loss, epoch + 1)
+                train_writer.add_scalar('test_acc', test_acc, epoch + 1)
+                all_accs_train.append(accs_train.avg)
+                all_loss_train.append(losses_train.avg)
+                all_accs_test.append(test_acc)
+                all_loss_test.append(test_loss)
 
-            scheduler.step()
+                scheduler.step()
 
-            # Save latest checkpoint.
-            chk_path = os.path.join(opts.checkpoint, 'latest_epoch.bin')
-            print('Saving checkpoint to', chk_path)
-            torch.save({
-                'epoch': epoch+1,
-                'lr': scheduler.get_last_lr(),
-                'optimizer': optimizer.state_dict(),
-                'model': model.state_dict(),
-                'best_acc' : best_acc
-            }, chk_path)
-
-            # Save best checkpoint.
-            best_chk_path = os.path.join(opts.checkpoint, 'best_epoch.bin'.format(epoch))
-            if test_acc > best_acc:
-                best_acc = test_acc
-                print("save best checkpoint")
+                # Save latest checkpoint.
+                chk_path = os.path.join(opts.checkpoint, str(i), 'latest_epoch.bin')
+                print('Saving checkpoint to', chk_path)
                 torch.save({
-                'epoch': epoch+1,
-                'lr': scheduler.get_last_lr(),
-                'optimizer': optimizer.state_dict(),
-                'model': model.state_dict(),
-                'best_acc' : best_acc
-                }, best_chk_path)
+                    'epoch': epoch+1,
+                    'lr': scheduler.get_last_lr(),
+                    'optimizer': optimizer.state_dict(),
+                    'model': model.state_dict(),
+                    'best_acc' : best_acc
+                }, chk_path)
+
+                # Save best checkpoint.
+                best_chk_path = os.path.join(opts.checkpoint, str(i), 'best_epoch.bin'.format(epoch))
+                if test_acc > best_acc:
+                    best_acc = test_acc
+                    print("save best checkpoint")
+                    torch.save({
+                    'epoch': epoch+1,
+                    'lr': scheduler.get_last_lr(),
+                    'optimizer': optimizer.state_dict(),
+                    'model': model.state_dict(),
+                    'best_acc' : best_acc
+                    }, best_chk_path)
+
+            # display as image
+            display_train_test_results(os.path.join("vis"), i, all_accs_train, all_loss_train, all_accs_test, all_loss_test)
+
+            kcv_results[i] = {
+                'train_accs': all_accs_train,
+                'train_loss': all_loss_train,
+                'test_accs': all_accs_test,
+                'test_loss': all_loss_test
+            }
+
+    print_kcv_results(kcv_results)
 
     if opts.evaluate:
         test_loss, test_acc, test_top5 = validate(test_loader, model, criterion)

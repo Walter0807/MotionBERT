@@ -33,7 +33,7 @@ class ActionHeadClassification(nn.Module):
         return feat
 
 class WalkingNet(nn.Module):
-    def __init__(self, backbone, dim_rep=512, num_classes=60, dropout_ratio=0., version='class', hidden_dim=2048, num_joints=17):
+    def __init__(self, backbone, dim_rep=512, num_classes=2, dropout_ratio=0., version='class', hidden_dim=2048, num_joints=17):
         super(WalkingNet, self).__init__()
         self.backbone = backbone
         self.feat_J = num_joints
@@ -49,7 +49,6 @@ class WalkingNet(nn.Module):
             Input: (N, M x T x 17 x 3)
         '''
         N, M, T, J, C = x.shape
-        # M = 1 # 動くように変更した
         x = x.reshape(N*M, T, J, C)
         feat = self.backbone.get_representation(x)
         feat = feat.reshape([N, M, T, self.feat_J, -1])      # (N, M, T, J, C)

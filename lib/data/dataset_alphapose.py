@@ -94,20 +94,11 @@ class AlphaPoseDataset(Dataset):
     self.X: list of numpy array of shape (2, n_frames, 17, 3), second person is fake
     self.y: list of labels
     """
-    def __init__(self, data_path, train=True, n_frames=243, random_move=True, scale_range=[1,1], check_split=True):
+    def __init__(self, json_paths, labels, train=True, n_frames=243, random_move=True, scale_range=[1,1], check_split=True):
         # Create the json paths list and corresponding labels list
-        self.path = data_path
         self.mode = 'train' if train else 'test'
-        classes = { 'normal' : 0, 'model': 1 }
-        self.all_json_paths = []
-        self.labels = []
-        for cls in classes:
-            cls_dir = os.path.join(self.path, self.mode, cls, 'json')
-            json_path_list = glob.glob(os.path.join(cls_dir, '*.json'))
-
-            self.all_json_paths.extend(json_path_list)
-            self.labels.extend([classes[cls] for _ in range(len(json_path_list))])
-
+        self.all_json_paths = json_paths
+        self.labels = labels
         self.random_move = random_move
         self.scale_range = scale_range
         self.n_frames = n_frames
@@ -127,7 +118,6 @@ class AlphaPoseDataset(Dataset):
             motion = np.array(read_input(json_path, vid_size=None, scale_range=self.scale_range, focus=None))
             resample_id = resample(ori_len=motion.shape[0], target_len=self.n_frames, randomness=(self.mode == 'train'))
             motion = motion[resample_id]
-            print(motion.shape)
             fake = np.zeros(motion.shape)
             motion = np.array([motion, fake])
             self.X.append(motion.astype(np.float32))
