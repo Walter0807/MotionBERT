@@ -1,17 +1,19 @@
-import torch
-import numpy as np
-import ipdb
-import glob
 import os
+import glob
+import json
+import pickle
 import io
 import math
 import random
-import json
-import pickle
-import math
+
+import numpy as np
+import torch
 from torch.utils.data import Dataset, DataLoader
-from lib.utils.utils_data import crop_scale
-import json
+
+import ipdb
+
+from lib.utils.utils_data import crop_scale, resample
+
 
 def halpe2h36m(x):
     '''
@@ -86,33 +88,46 @@ def read_input(json_path, vid_size, scale_range, focus):
         motion = crop_scale(kpts_all, scale_range)
     return motion.astype(np.float32)
 
-
 class AlphaPoseDataset(Dataset):
     """
-    Takes a list of json path and returns the corresponding dataset
+    Takes a dataset path and returns the corresponding dataset
     self.X: list of numpy array of shape (2, n_frames, 17, 3), second person is fake
     self.y: list of labels
     """
-    def __init__(self, json_paths, labels, n_frames=243, random_move=True, scale_range=[1,1], check_split=True):
-        np.random.seed(0)
-        self.json_paths = json_paths
-        self.y = labels
+    def __init__(self, data_path, train=True, n_frames=243, random_move=True, scale_range=[1,1], check_split=True):
+        # Create the json paths list and corresponding labels list
+        self.path = data_path
+        self.mode = 'train' if train else 'test'
+        classes = { 'normal' : 0, 'model': 1 }
+        self.all_json_paths = []
+        self.labels = []
+        for cls in classes:
+            cls_dir = os.path.join(self.path, self.mode, cls, 'json')
+            json_path_list = glob.glob(os.path.join(cls_dir, '*.json'))
+
+            self.all_json_paths.extend(json_path_list)
+            self.labels.extend([classes[cls] for _ in range(len(json_path_list))])
+
         self.random_move = random_move
         self.scale_range = scale_range
+        self.n_frames = n_frames
         self.X = []
 
         self._process_json()
 
     def __len__(self):
         """Denotes the total number of samples"""
-        return len(self.json_paths)
+        return len(self.all_json_paths)
 
     def _process_json(self):
         """
         Process the json files and store the data in self.X
         """
-        for json_path in self.json_paths:
+        for json_path in self.all_json_paths:
             motion = np.array(read_input(json_path, vid_size=None, scale_range=self.scale_range, focus=None))
+            resample_id = resample(ori_len=motion.shape[0], target_len=self.n_frames, randomness=(self.mode == 'train'))
+            motion = motion[resample_id]
+            print(motion.shape)
             fake = np.zeros(motion.shape)
             motion = np.array([motion, fake])
             self.X.append(motion.astype(np.float32))
@@ -123,4 +138,4 @@ class AlphaPoseDataset(Dataset):
         self.X[index]: (2, n_frames, 17, 3)
         self.y[index]: label (0 or 1)
         """
-        return self.X[index], self.y[index]
+        return self.X[index], self.labels[index]

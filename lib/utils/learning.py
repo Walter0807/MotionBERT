@@ -21,7 +21,7 @@ class AverageMeter(object):
         self.sum += val * n
         self.count += n
         self.avg = self.sum / self.count
-        
+
 def accuracy(output, target, topk=(1,)):
     """Computes the accuracy over the k top predictions for the specified values of k"""
     with torch.no_grad():
@@ -35,6 +35,16 @@ def accuracy(output, target, topk=(1,)):
             correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)
             res.append(correct_k.mul_(100.0 / batch_size))
         return res
+
+def binary_accuracy(output, target):
+    """
+    Computes the accuracy for binary classification tasks.
+    Take softmax output and target label as input.
+    """
+    with torch.no_grad():
+        output = torch.argmax(output, dim=1)
+        correct = (output == target).sum().item()
+        return correct / target.size(0)
 
 def load_pretrained_weights(model, checkpoint):
     """Load pretrianed weights to model
@@ -80,22 +90,22 @@ def load_backbone(args):
     if not(hasattr(args, "backbone")):
         args.backbone = 'DSTformer' # Default
     if args.backbone=='DSTformer':
-        model_backbone = DSTformer(dim_in=3, dim_out=3, dim_feat=args.dim_feat, dim_rep=args.dim_rep, 
-                                   depth=args.depth, num_heads=args.num_heads, mlp_ratio=args.mlp_ratio, norm_layer=partial(nn.LayerNorm, eps=1e-6), 
+        model_backbone = DSTformer(dim_in=3, dim_out=3, dim_feat=args.dim_feat, dim_rep=args.dim_rep,
+                                   depth=args.depth, num_heads=args.num_heads, mlp_ratio=args.mlp_ratio, norm_layer=partial(nn.LayerNorm, eps=1e-6),
                                    maxlen=args.maxlen, num_joints=args.num_joints)
     elif args.backbone=='TCN':
         from lib.model.model_tcn import PoseTCN
         model_backbone = PoseTCN()
     elif args.backbone=='poseformer':
-        from lib.model.model_poseformer import PoseTransformer 
+        from lib.model.model_poseformer import PoseTransformer
         model_backbone = PoseTransformer(num_frame=args.maxlen, num_joints=args.num_joints, in_chans=3, embed_dim_ratio=32, depth=4,
-            num_heads=8, mlp_ratio=2., qkv_bias=True, qk_scale=None,drop_path_rate=0, attn_mask=None) 
+            num_heads=8, mlp_ratio=2., qkv_bias=True, qk_scale=None,drop_path_rate=0, attn_mask=None)
     elif args.backbone=='mixste':
-        from lib.model.model_mixste import MixSTE2 
+        from lib.model.model_mixste import MixSTE2
         model_backbone = MixSTE2(num_frame=args.maxlen, num_joints=args.num_joints, in_chans=3, embed_dim_ratio=512, depth=8,
         num_heads=8, mlp_ratio=2., qkv_bias=True, qk_scale=None,drop_path_rate=0)
     elif args.backbone=='stgcn':
-        from lib.model.model_stgcn import Model as STGCN 
+        from lib.model.model_stgcn import Model as STGCN
         model_backbone = STGCN()
     else:
         raise Exception("Undefined backbone type.")
