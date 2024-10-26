@@ -3,7 +3,7 @@ finetune: True
 partial_train: null
 
 # Traning
-epochs: 20
+epochs: 30
 batch_size: 16
 lr_backbone: 0.00003
 lr_head: 0.0001

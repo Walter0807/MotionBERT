@@ -128,8 +128,8 @@ def print_kcv_results(kcv_results):
     for i in range(len(kcv_results)):
         print(f"Fold {i}, last 5 epochs:")
         # print the last 5 epochs
-        print(f"Train acc: {np.mean(kcv_results[i]['train_accs'][-5:])}")
-        print(f"Test acc: {np.mean(kcv_results[i]['test_accs'][-5:])}")
-        print(f"Train loss: {np.mean(kcv_results[i]['train_losses'][-5:])}")
-        print(f"Test loss: {np.mean(kcv_results[i]['test_losses'][-5:])}")
+        print(f"Train acc: {np.mean(kcv_results[i]['train_accs'][-5:]):.4f}")
+        print(f"Test acc: {np.mean(kcv_results[i]['test_accs'][-5:]):.4f}")
+        print(f"Train loss: {np.mean(kcv_results[i]['train_losses'][-5:]):.4f}")
+        print(f"Test loss: {np.mean(kcv_results[i]['test_losses'][-5:]):.4f}")
         print()
