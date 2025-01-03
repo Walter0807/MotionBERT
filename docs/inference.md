@@ -31,7 +31,8 @@ python infer_wild.py \
 | ------------------------------------------------------------ | ----------- |
 
 1. Please download the checkpoint [here](https://1drv.ms/f/s!AvAdh0LSjEOlgTmgYNslCDWMNQi9?e=WjcB1F) and put it to `checkpoint/mesh/FT_MB_release_MB_ft_pw3d/`
-2. Run the following command to infer from the extracted 2D poses:
+2. Please prepare data following [here](https://github.com/Walter0807/MotionBERT/blob/main/docs/mesh.md#data).
+3. Run the following command to infer from the extracted 2D poses:
 ```bash
 python infer_wild_mesh.py \
 --vid_path <your_video.mp4> \
