@@ -44,7 +44,7 @@ lambda_av: 0.0
 
 # Augmentation
 synthetic: False
-flip: True
+flip: False
 mask_ratio: 0.
 mask_T_ratio: 0.
 noise: False

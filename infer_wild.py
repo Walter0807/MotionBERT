@@ -12,6 +12,9 @@ from lib.utils.utils_data import flip_data
 from lib.data.dataset_wild import WildDetDataset
 from lib.utils.vismo import render_and_save
 
+import os
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, default="configs/pose3d/MB_ft_h36m_global_lite.yaml", help="Path to the config file.")
@@ -28,23 +31,28 @@ def parse_args():
 opts = parse_args()
 args = get_config(opts.config)
 
+print('Loading checkpoint', opts.evaluate)
+checkpoint = torch.load(opts.evaluate, map_location=lambda storage, loc: storage)
+
 model_backbone = load_backbone(args)
 if torch.cuda.is_available():
     model_backbone = nn.DataParallel(model_backbone)
     model_backbone = model_backbone.cuda()
+    model_backbone.load_state_dict(checkpoint['model_pos'], strict=True)
+else:
+    state_dict = checkpoint['model_pos']
+    state_dict = {k.replace('module.', '', 1): v for k, v in state_dict.items()}
+    model_backbone.load_state_dict(state_dict, strict=True)
 
-print('Loading checkpoint', opts.evaluate)
-checkpoint = torch.load(opts.evaluate, map_location=lambda storage, loc: storage)
-model_backbone.load_state_dict(checkpoint['model_pos'], strict=True)
 model_pos = model_backbone
 model_pos.eval()
 testloader_params = {
           'batch_size': 1,
           'shuffle': False,
-          'num_workers': 8,
+          'num_workers': 0,
           'pin_memory': True,
-          'prefetch_factor': 4,
-          'persistent_workers': True,
+        #   'prefetch_factor': 4,
+        #   'persistent_workers': True,
           'drop_last': False
 }
 
@@ -81,7 +89,8 @@ with torch.no_grad():
         if args.rootrel:
             predicted_3d_pos[:,:,0,:]=0                    # [N,T,17,3]
         else:
-            predicted_3d_pos[:,0,0,2]=0
+            # predicted_3d_pos[:,0,0,2]=0
+            predicted_3d_pos[:, :, 0, 2] = 0
             pass
         if args.gt_2d:
             predicted_3d_pos[...,:2] = batch_input[...,:2]

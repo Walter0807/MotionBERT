@@ -61,7 +61,10 @@ args = get_config(opts.config)
 # root_rel
 # args.rootrel = True
 
-smpl = SMPL(args.data_root, batch_size=1).cuda()
+if torch.cuda.is_available():
+    smpl = SMPL(args.data_root, batch_size=1).cuda()
+else:
+    smpl = SMPL(args.data_root, batch_size=1)
 J_regressor = smpl.J_regressor_h36m
 
 end = time.time()
@@ -71,14 +74,20 @@ end = time.time()
 model = MeshRegressor(args, backbone=model_backbone, dim_rep=args.dim_rep, hidden_dim=args.hidden_dim, dropout_ratio=args.dropout)
 print(f'init whole model time: {(time.time()-end):02f}s')
 
-if torch.cuda.is_available():
-    model = nn.DataParallel(model)
-    model = model.cuda()
-
 chk_filename = opts.evaluate if opts.evaluate else opts.resume
 print('Loading checkpoint', chk_filename)
 checkpoint = torch.load(chk_filename, map_location=lambda storage, loc: storage)
-model.load_state_dict(checkpoint['model'], strict=True)
+
+if torch.cuda.is_available():
+    model = nn.DataParallel(model)
+    model = model.cuda()
+    model.load_state_dict(checkpoint['model'], strict=True)
+else:
+    state_dict = checkpoint['model']
+    state_dict = {k.replace('module.', '', 1): v for k, v in state_dict.items()}
+    model.load_state_dict(state_dict, strict=True)
+    
+
 model.eval()
 
 testloader_params = {

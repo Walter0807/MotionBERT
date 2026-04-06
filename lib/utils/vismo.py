@@ -263,12 +263,12 @@ def motion2video_3d(motion, save_path, fps=25, keep_imgs = False):
         ax.set_xlim(-512, 0)
         ax.set_ylim(-256, 256)
         ax.set_zlim(-512, 0)
-        # ax.set_xlabel('X')
-        # ax.set_ylabel('Y')
-        # ax.set_zlabel('Z')
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
         ax.view_init(elev=12., azim=80)
-        plt.tick_params(left = False, right = False , labelleft = False ,
-                        labelbottom = False, bottom = False)
+        plt.tick_params(left = False, right = False , labelleft = True ,
+                        labelbottom = True, bottom = False)
         for i in range(len(joint_pairs)):
             limb = joint_pairs[i]
             xs, ys, zs = [np.array([j3d[limb[0], j], j3d[limb[1], j]]) for j in range(3)]

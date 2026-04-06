@@ -44,6 +44,9 @@ def halpe2h36m(x):
     {25, "RHeel"},
     '''
     T, V, C = x.shape
+    if V == 17:
+        return x
+    
     y = np.zeros([T,17,C])
     y[:,0,:] = x[:,19,:]
     y[:,1,:] = x[:,12,:]
